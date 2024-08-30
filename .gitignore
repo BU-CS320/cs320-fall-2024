@@ -2,3 +2,4 @@
 _build/
 _opam/
 .exrc
+.DS_Store
