@@ -23,11 +23,7 @@ repository with Gradescope to submit assignments.
    ```
 
 2. Create a **private** repository called `cs320-fall-2024-private` on
-   Github, e.g.,
-
-   ```
-   https://github.com/nmmull/cs320-fall-2024-private
-   ```
+   Github, e.g., [](https://github.com/nmmull/cs320-fall-2024-private)
 
 3. Mirror-push this repository into your private repository
 
