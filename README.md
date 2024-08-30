@@ -49,11 +49,11 @@ repository with Gradescope to submit assignments.
    rm -rf cs320-spring-2024
    ```
 
-You will complete all the work for the course in your private repository.
+You'll complete all the work for the course in your private repository.
 
 ## Syncing with the Course Repository
 
-When materials are added to the course repository, you will need merge
+When materials are added to the course repository, you;ll need merge
 those changes into your private repository. **You should get in the
 habit of doing this frequently.**
 
@@ -67,17 +67,17 @@ git merge upstream/main main
 git push
 ```
 
-This will merge the updates to the course repository to your private
+This will merge the updates to the course repository into your private
 repository both locally and on Github.
 
 ## Submitting Assignments
 
 You should commit your changes frequently in your private repository
-(we will assume familiarity with `git`, see the [git
+(we'll assume familiarity with `git`, see the [git
 tutorial](https://git-scm.com/docs/gittutorial) for more information
 if you are unfamiliar).  Before you submit an assignment, **make sure
 that you've pushed all your changes** using `git push`.  On
-Gradescope, you will be able to choose your private repository for
+Gradescope, you'll be able to choose your private repository for
 grading.
 
 # Setting up your Private Repository
@@ -100,13 +100,12 @@ machine to be able to compile and run OCaml program.
    opam install dune utop ounit2
    ```
 
-4. Install the standard library we will use for this course.  We
-   include
+4. Install the course standard library.  We include
    [documentation](https://nmmull.github.io/CS320/landing/Fall-2024/Specifications/Stdlib320/index.html)
-   for this library on the course webpage.  We will grade assignments
-   under the assumption that you only have access to this library.
-   The dune projects for assignments are set up to assume this as
-   well.
+   for this library on the course webpage.  We'll grade assignments
+   under the assumption that you only have access to this library (the
+   dune projects we release for assignments assume this as well, so
+   you don't need to do any additional setup).
 
    ```
    opam install stdlib320/.
@@ -118,14 +117,14 @@ machine to be able to compile and run OCaml program.
    opam install ocaml-lsp-server
    ```
 
-   then install the [OCaml
+   and then install the [OCaml
    Platform](https://marketplace.visualstudio.com/items?itemName=ocamllabs.ocaml-platform)
    from the Visual Studio Marketplace
 
 # Assignment Workflow
 
-Once everything is set up, working on an assignment will roughly work
-as follows.
+Once everything is set up, working on an assignment will go roughly as
+follows.
 
 1. Sync with the course repository to get access to the assignment
 
@@ -148,12 +147,15 @@ as follows.
 6. (Optional) Add your own OUnit tests to the `test` directory
 
 7. Push your work to your private repository and submit your
-   assignment via Gradescope.
+   assignment via Gradescope
 
 On Gradescope, you should see a message which says that your
 assignment was accepted.  You will not see any other information
-there. **Important.** Please make sure that your code at least build
-(via `dune build` **in the course repository**) before submission.  In
-particular, this might mean that, even if you are only partially
-completing the assignment, you may have to introduce skeleton code to
-the `lib` directory.
+there.
+
+> **Important.** Please make sure that your code at least build
+> (via `dune build` **in the course repository**) before submission.
+
+This means that, even if you are only partially completing the
+assignment, you may have to introduce skeleton code to the `lib`
+directory.
