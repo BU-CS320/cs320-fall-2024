@@ -153,9 +153,10 @@ On Gradescope, you should see a message which says that your
 assignment was accepted.  You will not see any other information
 there.
 
-**Important.** Please make sure that **your code and provided tests at
-least build** (via `dune build` **in the course repository**) before
-submission.
+## Important: Your code must build to receive credit
+
+Please make sure that **your code and provided tests at least build**
+(via `dune build` **in the course repository**) before submission.
 
 This means that, even if you are only partially completing the
 assignment, you may have to introduce skeleton code to the `lib`
