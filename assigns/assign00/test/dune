@@ -1,0 +1,4 @@
+(test
+ (name test_assign00)
+ (libraries test_suite ounit2 assign00))
+
