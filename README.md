@@ -46,7 +46,7 @@ repository with Gradescope to submit assignments.
 6. Remove the clone of this repository
 
    ```
-   rm -rf cs320-spring-2024
+   rm -rf cs320-fall-2024
    ```
 
 You'll complete all the work for the course in your private repository.
