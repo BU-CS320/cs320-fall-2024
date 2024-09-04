@@ -40,7 +40,7 @@ repository with Gradescope to submit assignments.
 5. Add **this** repository as a remote for your private repository
 
    ```
-   git -C ./cs320-spring-2024-private remote add upstream git@github.com:nmmull/cs320-fall-2024-private.git
+   git -C ./cs320-fall-2024-private remote add upstream git@github.com:nmmull/cs320-fall-2024-private.git
    ```
 
 6. Remove the clone of this repository
