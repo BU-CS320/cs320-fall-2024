@@ -16,6 +16,25 @@ repository with Gradescope to submit assignments.
 
 ## Mirroring this Repository
 
+0. The following instructions assume that you are set up to connect to Github using SSH.
+   See the [tutorials](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) in the Github docs for more information on how to do this.
+   If you don't want to use SSH, then you'll have to replace each repository with its web url, e.g., you should replace
+   ```
+   git@github.com:BU-CS320/cs320-fall-2024.git
+   ```
+   with
+   ```
+   https://github.com/BU-CS320/cs320-spring-2024.git
+   ```
+   and
+   ```
+   git@github.com:YOURNAME/cs320-fall-2024-private.git
+   ```
+   with
+   ```
+   https://github.com/YOURNAME/cs320-fall-2024-private.git
+   ```
+
 1. Clone this repository
 
    ```
@@ -28,19 +47,27 @@ repository with Gradescope to submit assignments.
 3. Mirror-push this repository into your private repository
 
    ```
-   git -C ./cs320-fall-2024 push --mirror git@github.com:nmmull/cs320-fall-2024-private.git
+   git -C ./cs320-fall-2024 push --mirror git@github.com:YOURNAME/cs320-fall-2024-private.git
    ```
 
 4. Clone your private repository
 
    ```
-   git clone git@github.com:nmmull/cs320-fall-2024-private.git
+   git clone git@github.com:YOURNAME/cs320-fall-2024-private.git
    ```
 
 5. Add **this** repository as a remote for your private repository
 
    ```
    git -C ./cs320-fall-2024-private remote add upstream git@github.com:BU-CS320/cs320-fall-2024.git
+   ```
+   **Note.** This was recently updated.
+   If you set it up with the previous command, you should remove the remote and add this remote instead.
+   This means running the following
+
+   ```
+   cd cs320-fall-2024-private remote remove upstream
+   git add remote upstream git@github.com:BU-CS320/cs320-fall-2024.git
    ```
 
 6. Remove the clone of this repository
@@ -62,6 +89,7 @@ following commands (you should check that you don't have any
 uncommitted changes in your directory).
 
 ```
+cd cs320-fall-2024-private
 git fetch upstream
 git merge upstream/main main
 git push
@@ -85,11 +113,13 @@ grading.
 After you've mirrored the course repository, you'll set up your
 machine to be able to compile and run OCaml program.
 
-1. Install [opam](https://opam.ocaml.org/doc/Install.html)
+1. Install [opam](https://opam.ocaml.org/doc/Install.html).
+   Follow all the associated instructions, e.g., make sure to run `opam init`.
 
 2. Create a local switch in the directory for your private repository
 
    ```
+   cd cs320-fall-2024-private
    opam switch create ./ 4.13.1
    eval $(opam env)
    ```
@@ -97,6 +127,7 @@ machine to be able to compile and run OCaml program.
 3. Install the `dune`, `utop` and `ounit2`, which we will use throughout the course
 
    ```
+   opam update
    opam install dune utop ounit2
    ```
 
@@ -134,7 +165,9 @@ follows.
    eval $(opam env)
    ```
 
-3. Fill in your solutions, make sure to commit your changes frequently
+3. Fill in your solutions, make sure to commit your changes frequently.
+   *Note.* You will have to create your own files which satisfy the specification of the assignment.
+   You can verify that you've set everything up correctly if `dune build` doesn't show any errors when run in `assigns/assignXX`
 
 4. From within the assignment `lib` directory, frequently run `dune build`
    to type check your code
