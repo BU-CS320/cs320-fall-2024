@@ -16,8 +16,8 @@ repository with Gradescope to submit assignments.
 
 ## Mirroring this Repository
 
-0. The following instructions assume that you are set up to connect to Github using SSH.
-   See the [tutorials](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) in the Github docs for more information on how to do this.
+0. The following instructions assume that you are set up to connect to GitHub using SSH.
+   See the [tutorials](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) in the GitHub docs for more information on how to do this.
    If you don't want to use SSH, then you'll have to replace each repository with its web url, e.g., you should replace
    ```
    git@github.com:BU-CS320/cs320-fall-2024.git
@@ -62,7 +62,7 @@ repository with Gradescope to submit assignments.
    git -C ./cs320-fall-2024-private remote add upstream git@github.com:BU-CS320/cs320-fall-2024.git
    ```
    **Note.** This was recently updated.
-   If you set it up with the previous command, you should remove the remote and add this remote instead.
+   If you set it up with the previous command, you should remove that remote and add this remote instead.
    This means running the following
 
    ```
@@ -80,7 +80,7 @@ You'll complete all the work for the course in your private repository.
 
 ## Syncing with the Course Repository
 
-When materials are added to the course repository, you;ll need merge
+When materials are added to the course repository, you'll need merge
 those changes into your private repository. **You should get in the
 habit of doing this frequently.**
 
