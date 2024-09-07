@@ -1,0 +1,10 @@
+{
+  "name": "CS320 Fall 2024 dev container",
+  "build": { "dockerfile": "Dockerfile" },
+
+  "customizations": {
+    "vscode" : {
+      "extensions" : [ "ocamllabs.ocaml-platform" ]
+    }
+  }
+}
