@@ -24,7 +24,7 @@ repository with Gradescope to submit assignments.
    ```
    with
    ```
-   https://github.com/BU-CS320/cs320-spring-2024.git
+   https://github.com/BU-CS320/cs320-fall-2024.git
    ```
    and
    ```
