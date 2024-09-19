@@ -1,0 +1,6 @@
+(library
+ (name assign02)
+ (public_name assign02)
+ (libraries stdlib320)
+ (wrapped false)
+ (flags (:standard -nostdlib -nopervasives -open Stdlib320)))
