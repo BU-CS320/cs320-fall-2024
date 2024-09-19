@@ -1,0 +1,152 @@
+MY LANGUAGE:
+
+Formal Syntax:
+<expr> ::= if <expr> then <expr> else <expr> | let <var> = <expr> in <expr> | true | false | v
+
+Inference Rules for Computing The Size of Expression in My Language
+
+Examples:
+
+3 + 4               has size 3
+true                has size 4
+false               has size 5
+let x = true in x   has size 12
+
+
+Rules:
+
+---------------TT
+true has size 4
+
+English Explanation:
+  true has size 4
+
+
+
+----------------FF
+false has size 5
+
+English Explanation:
+  false has size 5
+
+
+
+len(var) = s
+--------------VAR
+var has size s
+
+English Explanation:
+If
+  len(var) comes out to s
+Then
+  var has size s
+
+
+
+e has size n     e1 has size n1     e2 has size n2
+--------------------------------------------------------IF
+if e then e1 else e2   has size 2 + n + 4 + n1 + 4 + n2
+
+If
+  e has size n
+And
+  e1 has size n1
+And
+  e2 has size n2
+Then
+  if e then e1 else e2 has size 2 + n + 4 + n1 + 4 + n2
+
+
+
+var has size n    e1 has size n1     e2 has size n2
+------------------------------------------------------LET
+let var = e1 in e2   has size 3 + n + 1 + n1 + 2 + n2
+
+English Explanation:
+If
+  var has size n
+And
+  e1 has size n1
+And
+  e2 has size n2
+Then
+  let var = e1 in e2  has size 3 + n + 1 + n1 + 2 + n2
+
+Size Derivation for an Example Expression:
+
+                                          len(x) = 1
+                                        --------------VAR   ---------------TT    ------------------FF
+len(x) = 1                              x has size 1        true has size 4       false has size 5
+------------VAR   ---------------TT    -----------------------------------------------------------------IF
+x has size 1      true has size 4        if x then true else false has size 2+1+4+4+4+5
+---------------------------------------------------------------------------------------------------------LET
+let x = true in if x then true else false  has size 3+1+1+4+2+2+1+4+4+4+5
+
+
+
+Inference Rules for Checking The Type of Expression in My Language
+
+
+
+-------------TT
+true : bool
+
+English Explanation:
+  true has type bool
+
+
+
+-------------F
+false : bool 
+
+English Explanation:
+  false has type bool
+
+
+
+e : bool     e1 : τ      e2 : τ
+---------------------------------T-IF
+if e then e1 else e2 : τ
+
+If
+  Under context Γ, e has type bool
+And
+  Under context Γ, e1 has type τ
+And
+  Under context Γ, e2 has type τ
+Then
+  Under context Γ, if e then e1 else e2 has type τ
+
+
+
+
+Γ |- e1 : τ      Γ, var : τ |- e2 : τ'
+--------------------------------------T-LET
+Γ |- let var = e1 in e2 : τ'
+
+If
+  Under context Γ, e1 has type τ
+And
+  Under context Γ extended with {var : τ}, e2 has type τ'
+Then
+  Under context Γ, let var = e1 in e2 has type τ'
+
+
+var : τ is in the set Γ
+------------------------VAR
+      Γ |- var : τ
+
+If
+  var : τ is in the set Γ
+Then
+  Under context Γ, var has type τ
+
+
+
+Type Derivation for an Example Expression
+
+                               x : bool is in the set {x : bool}
+--------------------TT     ----------------------------------------VAR
+{} |- true : bool                 { x : bool } |- x : bool
+---------------------------------------------------------------------LET
+                 {} |- let x = true in x : bool
