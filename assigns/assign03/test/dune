@@ -1,0 +1,7 @@
+(tests
+ (names
+  test_assign03_01
+  test_assign03_02
+  test_assign03_03
+  test_assign03_04)
+ (libraries test_suite ounit2 assign03))
