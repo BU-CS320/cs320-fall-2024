@@ -1,0 +1,82 @@
+MY LANGUAGE:
+
+Formal Syntax:
+<expr> ::=
+if <expr> then <expr> else <expr> |
+let <var> = <expr> in <expr> |
+true |
+false |
+<var>
+
+Inference Rules for Computing the Value of Expression in My Language
+
+Judgment : e \||/ v
+
+----------------TV
+true \||/ true
+
+English Explanation:
+  true evaluates to true
+
+
+------------------FV
+false \||/ false
+
+English Explanation:
+  false evaluates to false
+
+
+e \||/ true      e1 \||/ v1
+-----------------------------IF-THEN
+if e then e1 else e2 \||/ v1
+
+English Explanation:
+If
+  e evaluates to true
+And
+  e1 evaluates to v1
+Then
+  if e then e1 else e2 evaluates to v1
+
+
+e \||/ false      e2 \||/ v2
+-----------------------------IF-ELSE
+if e then e1 else e2 \||/ v2
+
+English Explanation:
+If
+  e evaluates to false
+And
+  e2 evaluates to v2
+Then
+  if e then e1 else e2 evaluates to v2
+
+
+e1 \||/ v1           [v1/x] e2 \||/ v2
+----------------------------------------LET
+let x = e1 in e2 \||/ v2
+
+English Explanation:
+If
+  e1 evaluates to v1
+And
+  (Substitute v1 for x in e2) evaluates to v2
+Then
+  let x = e1 in e2 evaluates to v2
+
+
+Important:
+No evaluation rule for variables
+
+
+Example Derivation:
+
+                      ---------------TV   ---------------TV
+                      true \||/ true      true \||/ true
+----------------TV  ---------------------------------------IF-THEN
+true \||/ true      if true then true else true \||/ true
+-------------------------------------------------------------LET
+let x = true in if x then x else x \||/ true
+
+
+
