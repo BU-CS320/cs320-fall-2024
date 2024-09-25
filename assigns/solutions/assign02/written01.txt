@@ -1,0 +1,11 @@
+         ┌──{z : int, x : int, y : string } ⊢ x : int
+         ├──{z : int, x : int, y : string } ⊢ z : int
+      ┌──{z : int, x : int, y : string } ⊢ x + z : int
+      ├──{z : int, x : int, y : string } ⊢ y : string
+   ┌──{ z : int, x : int, y : string } ⊢ (x + z, y) : int * string
+   ├──{ z : int, x : int } ⊢ "five" : string
+┌──{ z : int, x : int } ⊢ let y = "five" in (x + z, y) : int * string
+│  ┌──{ z : int } ⊢ z : int
+│  ├──{ z : int } ⊢ 5 : int
+├──{ z : int } ⊢ z + 5 : int
+{ z : int } ⊢ let x = z + 5 in let y = "five" in (x + z, y) : int * string
