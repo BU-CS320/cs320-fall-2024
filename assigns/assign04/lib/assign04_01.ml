@@ -1,6 +1,10 @@
 (* assign04_01.ml *)
+
+let max_steps = 10000 (* Set an upper bound on recursion depth *)
+
+(* Tail-recursive function to compute lifespan of a function *)
 let rec lifespan f s p steps =
-  if p s then steps
+  if steps >= max_steps || p s then steps
   else lifespan f (f s) p (steps + 1)
 
 let last_function_standing funcs start pred =
@@ -16,4 +20,4 @@ let last_function_standing funcs start pred =
       else
         aux fs best_func best_lifespan
   in
-  aux funcs None (-1)   
+  aux funcs None (-1)
