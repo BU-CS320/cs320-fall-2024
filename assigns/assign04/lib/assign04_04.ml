@@ -1,4 +1,5 @@
 (* assign04_04.ml *)
+
 type ident = string
 
 type expr' =
@@ -14,11 +15,13 @@ type expr' =
 type ty' = Int | Bool
 type context = (ident * ty') list
 
+(* Helper function to look up variable types in the context *)
 let rec lookup ctx x =
   match ctx with
   | [] -> None
   | (y, t) :: ys -> if x = y then Some t else lookup ys x
 
+(* Type checker for the extended language with variables and let-bindings *)
 let rec type_of' ctx = function
   | True | False -> Some Bool
   | Num _ -> Some Int
@@ -39,3 +42,4 @@ let rec type_of' ctx = function
     (match type_of' ctx e1 with
     | Some t1 -> type_of' ((x, t1) :: ctx) e2
     | _ -> None)
+
