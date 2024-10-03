@@ -1,0 +1,16 @@
+   ┌──{ b : bool, l : int → int list } ⊢ b : bool
+   │  ┌──{ b : bool, l : int → int list } ⊢ l : int → int list
+   │  ├──{ b : bool, l : int → int list } ⊢ 0 : int
+   ├──{ b : bool, l : int → int list } ⊢ l 0 : int list
+   │  ┌──{ b : bool, l : int → int list } ⊢ l : int → int list
+   │  ├──{ b : bool, l : int → int list } ⊢ 1 : int
+   ├──{ b : bool, l : int → int list } ⊢ l 1 : int list
+┌──{ b : bool, l : int → int list } ⊢ if b then l 0 else l 1 : int list
+│  ┌──{ b : bool, i : int } ⊢ i : int
+│  │     ┌──{ b : bool, i : int } ⊢ i : int
+│  │     ├──{ b : bool, i : int } ⊢ 1 : int
+│  │  ┌──{ b : bool, i : int } ⊢ i + 1 :int
+│  │  ├──{ b : bool, i : int } ⊢ [] : int list
+│  ├──{b : bool, i : int} ⊢ i + 1 :: [] : int list
+├──{ b : bool, i : int } ⊢ i :: i + 1 :: [] : int list
+{ b : bool } ⊢ let l i = i :: i + 1 :: [] in if b then l 0 else l 1 : int list
