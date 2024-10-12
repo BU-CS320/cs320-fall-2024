@@ -1,0 +1,116 @@
+ITERATION TO RECURSION:
+
+
+let x = x_init;
+let y = y_init;
+
+let i = 0;
+
+while (condition(i)) {
+    x = x + y;
+    y = y * y;
+    i += 1;
+}
+let z = x * y * i;
+return z;
+
+let rec foo x y i =
+  if condition(i) = false then (x, y, i)
+  else
+    let x = x + y in
+    let y = y * y in
+    let i = i + 1 in
+    (foo x y i) * (foo 0 0 0)
+
+let (x, y, i) = foo x_init y_init 0 in
+let z = x * y * i in
+z
+
+Another Example with Lists:
+
+int i = 0;
+vector<int> v = vector<int>::new();
+while (i < n) {
+    v.append(i);
+    i += 1;
+}
+
+let foo i v =
+if not (i < n) then v
+else
+    let v = v @ [i] in
+    let i = i + 1 in
+    foo i v
+
+let s = foo 0 [] in
+
+
+
+
+HIGHER-ORDER PROGRAMMING:
+
+We will show you a few examples of higher-order programming for trees:
+
+type 'a tree =
+  | Leaf
+  | Node of 'a * 'a tree * 'a tree
+
+A Recursive Function on Trees:
+
+let rec foo f t =
+  match t with
+  | Leaf -> Leaf
+  | Node(n, l, r) ->
+      let newl = foo f l in
+      let newr = foo f r in
+      let newn = f n in
+      Node(newn, newl, newr)
+
+Abstracting the Common Pattern using Fold:
+
+let rec fold f base t =
+  match t with
+  | Leaf -> base
+  | Node(n, l, r) ->
+      let res_from_left_child = fold f base l in
+      let res_from_right_child = fold f base r in
+      f n res_from_left_child res_from_right_child
+
+let sum = fold (fun n l r -> n + l + r) 0
+
+let pre_order t = fold (fun n res_from_left_child res_from_right_child ->
+  [n] @ res_from_left_child @ res_from_right_child) [] t
+
+let size t = fold (fun _n res_from_left_child res_from_right_child ->
+  res_from_left_child + res_from_right_child + 1) 1 t
+
+
+
+
+INVALID TYPING DERIVATIONS:
+
+Consider the function:
+
+let rec sum n = if n > 0. then 0 else n + (sum (n-1))
+
+
+Derivation assuming n : float
+
+ n : float ε {n : float, sum : int -> int}                                                                                                                                                              
+--------------------------------------------VAR                                                                                                                 [PROBLEM APPLYING VAR RULE]            
+{n : float, sum : int -> int} |- n : float       {n : int, sum : int -> int} |- 0. : float                                                                {n : float, sum : int -> int} |- n : int     {n : float, sum : int -> int} |- sum (n-1) : int
+------------------------------------------------------------------------------------------GT       --------------------------------------------INT       ------------------------------------------------------------------------------------------------ADD
+            {n : float, sum : int -> int} |- n > 0. : bool                                              {n : int, sum : int -> int} |- 0 : int                {n : float, sum : int -> int} |- n + sum (n-1) : int
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------IF
+                                {n : float, sum : int -> int} |- if n > 0. then 0 else n + (sum (n-1)) : int
+
+
+Derivation assuming n : int
+
+        [PROBLEM APPLYING VAR RULE]                                                                                                                                                            
+--------------------------------------------VAR                                                                                                                           
+{n : int, sum : int -> int} |- n : float         {n : int, sum : int -> int} |- 0. : float                                                                {n : int, sum : int -> int} |- n : int     {n : float, sum : int -> int} |- sum (n-1) : int
+------------------------------------------------------------------------------------------GT       --------------------------------------------INT       ---------------------------------------------------------------------------------------------ADD
+            {n : int, sum : int -> int} |- n > 0. : bool                                              {n : int, sum : int -> int} |- 0 : int                {n : int, sum : int -> int} |- n + sum (n-1) : int
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------IF
+                                {n : int, sum : int -> int} |- if n > 0. then 0 else n + (sum (n-1)) : int
