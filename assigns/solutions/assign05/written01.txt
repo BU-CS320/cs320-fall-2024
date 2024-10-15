@@ -1,0 +1,14 @@
+      ┌──{f : int → int, n : int} ⊢ 0 : int
+      ├──{f : int → int, n : int} ⊢ n : int
+   ┌──{f : int → int, n : int} ⊢ n = 0 : bool
+   ├──{f : int → int, n : int} ⊢ 1 : int
+   │  ┌──{f : int → int, n : int} ⊢ f : int → int
+   │  │  ┌──{f : int → int, n : int} ⊢ n : int
+   │  │  ├──{f : int → int, n : int} ⊢ 1 : int
+   │  ├──{f : int → int, n : int} ⊢ n - 1 : int
+   ├──{f : int → int, n : int} ⊢ f (n - 1) : int
+┌──{f : int → int, n : int} ⊢ if n = 0 then 1 else f (n - 1) : int
+│  ┌──{f : int → int} ⊢ f : int → int
+│  ├──{f : int → int} ⊢ 10 : int
+├──{f : int → int} ⊢ f 10 : int
+· ⊢ let rec f n = if n = 0 then 1 else f (n - 1) in f 10 : int
