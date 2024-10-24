@@ -70,7 +70,7 @@ module TestList = struct
         (fun _ -> assert_equal [-2; -1; 0; 1; 2; 3; 23; 5435] (union (of_list l0) (of_list l1)))
 
   let basic_examples =
-    "basic ListSet example" >:::
+    "basic ListSet examples" >:::
       [ t_card_empty
       ; t_card_single
       ; t_card_l0
@@ -156,7 +156,7 @@ module TestFunc = struct
         (fun _ -> assert_equal [-2; -1; 0; 1; 2; 3; 23; 5435] (to_list (union (of_list l0) (of_list l1))))
 
   let basic_examples =
-    "basic ListSet example" >:::
+    "basic FuncSet examples" >:::
       [ t_card_empty
       ; t_card_single
       ; t_card_l0

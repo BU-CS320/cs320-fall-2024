@@ -1,0 +1,9 @@
+   ┌──· ⊢ 3 : int
+   │  ┌──{b : int} ⊢ a : int (DOES NOT FOLLOW FROM VAR)
+   │  ├──{b : int} ⊢ b : int
+   ├──{b : int} ⊢ a + b : int
+┌──· ⊢ let b = 3 in a + b : int
+│  ┌──{a : int} ⊢ 2 : int
+│  ├──{a : int} ⊢ 2 : int
+├──{a : int} ⊢ 2 * a : int
+· ⊢ let a = let b = 3 in a + b in 2 * a : int
