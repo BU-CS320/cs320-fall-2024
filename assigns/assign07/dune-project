@@ -1,0 +1,19 @@
+(lang dune 3.16)
+
+(name assign07)
+
+(generate_opam_files true)
+
+(package
+ (name assign07)
+ (depends ocaml dune ounit2 stdlib320))
+
+(package
+ (name my_parser)
+ (depends ocaml dune ounit2 stdlib320))
+
+(package
+ (name utils)
+ (depends ocaml dune ounit2 stdlib320))
+
+(using menhir 2.1)
