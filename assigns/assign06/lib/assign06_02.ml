@@ -1,6 +1,6 @@
-open Utils  (* Keep this if you need Utils *)
+open Utils  
 
-  let parse (tokens: Utils.tok list) : expr option =  (* Use Utils.tok *)
+  let parse (tokens: Utils.tok list) : expr option =  
     let rec helper stack = function
       | [] -> (match stack with
                | [e] -> Some e
