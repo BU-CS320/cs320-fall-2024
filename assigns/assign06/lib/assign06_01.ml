@@ -1,4 +1,4 @@
-open Utils  (* Import functions and types from utils.ml *)
+open Utils  
 
 (* Manually implement the `iter` function *)
 let rec my_iter f = function
@@ -18,13 +18,3 @@ let lex (s: string) : tok list option =
   in
   aux [] words
 
-(* Test function to check lexing behavior *)
-let () =
-  match lex "2 3 + 5 < ?" with
-  | Some tokens -> 
-      my_iter (function
-        | Utils.TNum n -> print_endline ("TNum " ^ string_of_int n)
-        | Utils.TAdd -> print_endline "TAdd"
-        | Utils.TLt -> print_endline "TLt"
-        | Utils.TIte -> print_endline "TIte") tokens
-  | None -> print_endline "Lexing failed: Invalid token"
