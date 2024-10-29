@@ -1,3 +1,0 @@
-(library
- (name demo)
- (libraries my_parser))
