@@ -63,8 +63,7 @@ let rec eval expr =
   | Var x -> Error (UnknownVar x)
   | Fun (x, e_body) -> Ok (Fun (x, e_body))  (* Return function itself as a value if needed *)
 
-  (* Catch-all for any unhandled cases *)
-  | _ -> Error (UnknownVar "Unknown pattern")
+
 
 (* Interpreter function *)
 let interp s =
