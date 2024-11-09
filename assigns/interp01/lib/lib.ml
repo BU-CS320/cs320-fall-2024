@@ -1,5 +1,5 @@
 open Utils
-open My_parser  (* Replace My_parser with the actual module name that contains the `parse` function *)
+open My_parser  (* Assuming this is where `parse` is defined *)
 
 (* Re-export the parse function to make it accessible through Lib *)
 let parse = parse
