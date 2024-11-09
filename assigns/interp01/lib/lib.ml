@@ -1,5 +1,5 @@
 open Utils
-open My_parser  (* Replace `My_parser` with the actual module name containing `parse` *)
+open My_parser  (* Ensure this module name matches where `parse` is defined *)
 
 (* Re-export the parse function to make it accessible as Lib.parse *)
 let parse = parse
@@ -68,7 +68,7 @@ let rec eval e =
         | Gte -> Ok (VBool (v1 >= v2))
         | Eq -> Ok (VBool (v1 = v2))
         | Neq -> Ok (VBool (v1 <> v2))
-        | _ -> Error (InvalidArgs op)  (* Catch any other invalid argument cases *)
+        | _ -> Error (InvalidArgs op)  (* Ensure all other cases throw an error *)
       in
       (match eval e1, eval e2 with
       | Ok (VNum v1), Ok (VNum v2) -> apply_bop op v1 v2
