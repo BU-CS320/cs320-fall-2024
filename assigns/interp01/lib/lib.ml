@@ -1,90 +1,65 @@
-(* lib.ml *)
-
 include Utils  (* Re-export everything from Utils to make it accessible *)
 
-open My_parser  (* Ensure this imports the parse function correctly *)
+open My_parser  (* Import the parse function correctly *)
 
 (* Re-export the parse function to make it accessible as Lib.parse *)
 let parse = parse
 
-(* Helper function to convert a value to an expression *)
-let value_to_expr = function
-  | VNum n -> Num n
-  | VBool true -> True
-  | VBool false -> False
-  | VUnit -> Unit
-  | VFun (x, e) -> Fun (x, e)
-
-(* Substitutes `v` (of type value) for variable `x` in expression `e` *)
+(* Substitute value `v` for variable `x` in expression `e`, capture-avoiding *)
 let rec subst v x e =
-  let v_expr = value_to_expr v in
   match e with
-  | Var y -> if y = x then v_expr else e
-  | Num _ | Unit | True | False -> e
+  | Var y when y = x -> v
+  | Var y -> Var y
+  | Num n -> Num n
+  | Unit -> Unit
+  | True -> True
+  | False -> False
   | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
-  | Let (y, e1, e2) ->
-      if y = x then Let (y, subst v x e1, e2)
-      else Let (y, subst v x e1, subst v x e2)
-  | Fun (y, e1) ->
-      if y = x then e
-      else Fun (y, subst v x e1)
-  | App (e1, e2) -> App (subst v x e1, subst v x e2)
+  | Let (y, e1, e2) when y <> x -> Let (y, subst v x e1, subst v x e2)
+  | Fun (y, e_body) when y <> x -> Fun (y, subst v x e_body)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
+  | App (e1, e2) -> App (subst v x e1, subst v x e2)
+  | _ -> e  (* Handle other cases appropriately *)
 
-(* Evaluates expressions and returns a result or an error *)
-let rec eval e =
-  match e with
-  | Num n -> Ok (VNum n)
-  | True -> Ok (VBool true)
-  | False -> Ok (VBool false)
-  | Unit -> Ok VUnit
-  | Var x -> Error (UnknownVar x)
-  | If (e1, e2, e3) ->
-      (match eval e1 with
-      | Ok (VBool true) -> eval e2
-      | Ok (VBool false) -> eval e3
-      | Ok _ -> Error InvalidIfCond
-      | Error err -> Error err)
+(* Evaluate expressions based on big-step operational semantics *)
+let rec eval expr =
+  match expr with
+  | Num n -> Ok (Num n)
+  | True -> Ok True
+  | False -> Ok False
+  | Unit -> Ok Unit
+
+  | Bop (Add, Num n1, Num n2) -> Ok (Num (n1 + n2))
+  | Bop (Sub, Num n1, Num n2) -> Ok (Num (n1 - n2))
+  | Bop (Mul, Num n1, Num n2) -> Ok (Num (n1 * n2))
+  | Bop (Div, Num n1, Num 0) -> Error DivByZero
+  | Bop (Div, Num n1, Num n2) -> Ok (Num (n1 / n2))
+  | Bop (Mod, Num n1, Num n2) when n2 = 0 -> Error DivByZero
+  | Bop (Mod, Num n1, Num n2) -> Ok (Num (n1 mod n2))
+
+  | If (cond, e_then, e_else) ->
+      (match eval cond with
+       | Ok True -> eval e_then
+       | Ok False -> eval e_else
+       | _ -> Error InvalidIfCond)
+
   | Let (x, e1, e2) ->
       (match eval e1 with
-      | Ok v -> eval (subst v x e2)
-      | Error err -> Error err)
-  | Fun (x, e) -> Ok (VFun (x, e))
-  | App (e1, e2) ->
-      (match eval e1 with
-      | Ok (VFun (x, e)) -> (
-          match eval e2 with
-          | Ok v -> eval (subst v x e)
-          | Error err -> Error err)
-      | Ok _ -> Error InvalidApp
-      | Error err -> Error err)
-  | Bop (op, e1, e2) ->
-      let apply_bop op v1 v2 = match op with
-        | Add -> Ok (VNum (v1 + v2))
-        | Sub -> Ok (VNum (v1 - v2))
-        | Mul -> Ok (VNum (v1 * v2))
-        | Div -> if v2 = 0 then Error DivByZero else Ok (VNum (v1 / v2))
-        | Mod -> if v2 = 0 then Error DivByZero else Ok (VNum (v1 mod v2))
-        | Lt -> Ok (VBool (v1 < v2))
-        | Lte -> Ok (VBool (v1 <= v2))
-        | Gt -> Ok (VBool (v1 > v2))
-        | Gte -> Ok (VBool (v1 >= v2))
-        | Eq -> Ok (VBool (v1 = v2))
-        | Neq -> Ok (VBool (v1 <> v2))
-        | _ -> Error (InvalidArgs op)
-      in
-      (match eval e1, eval e2 with
-      | Ok (VNum v1), Ok (VNum v2) -> apply_bop op v1 v2
-      | Ok (VBool b1), Ok (VBool b2) -> (
-          match op with
-          | And -> Ok (VBool (b1 && b2))
-          | Or -> Ok (VBool (b1 || b2))
-          | _ -> Error (InvalidArgs op))
-      | _ -> Error (InvalidArgs op))
+       | Ok v -> eval (subst v x e2)
+       | Error _ as err -> err)
 
-(* Combines parsing and evaluation *)
+  | App (Fun (x, e_body), e_arg) ->
+      (match eval e_arg with
+       | Ok v -> eval (subst v x e_body)
+       | Error _ as err -> err)
+  | App (_, _) -> Error InvalidApp
+
+  (* Error cases for operators *)
+  | Bop (_, _, _) -> Error InvalidArgs
+  | _ -> Error UnknownVar
+
+(* Interpreter function *)
 let interp s =
   match parse s with
-  | Some e -> eval e
+  | Some prog -> eval prog
   | None -> Error ParseFail
-
