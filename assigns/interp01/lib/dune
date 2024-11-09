@@ -1,7 +1,5 @@
 (library
  (name interp01)
- (public_name interp01)
- (modules lib)
- (libraries interp01.utils interp01.my_parser stdlib320)  ; Reference libraries with public names
+ (libraries stdlib320 my_parser utils)
  (wrapped false)
  (flags (:standard -nostdlib -nopervasives -open Stdlib320)))
