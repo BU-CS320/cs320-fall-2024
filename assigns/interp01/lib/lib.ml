@@ -1,5 +1,8 @@
 open Utils
-open My_parser  (* Assuming this is where `parse` is defined *)
+open My_parser  (* Replace `My_parser` with the actual name of the module containing `parse` *)
+
+(* Re-export the parse function to make it accessible as Lib.parse *)
+let parse = parse
 
 (* Helper function to convert a value to an expression *)
 let value_to_expr = function
