@@ -18,16 +18,14 @@ let rec subst v x e =
   | Num _ | Unit | True | False -> e
   | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
   | Let (y, e1, e2) ->
-      if y = x then Let (y, subst v x e1, e2)
+      if y = x then Let (y, subst v x e1, e2)  (* No substitution in e2 if y = x *)
       else Let (y, subst v x e1, subst v x e2)
-  | LetRec (f, y, e_body) ->
-      if f = x then e  (* Don't substitute in the body of the recursive function *)
-      else LetRec (f, y, subst v x e_body)
   | Fun (y, e1) ->
-      if y = x then e
+      if y = x then e  (* Don't substitute in the function body if y = x *)
       else Fun (y, subst v x e1)
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
+
 
 let rec eval e =
   match e with
