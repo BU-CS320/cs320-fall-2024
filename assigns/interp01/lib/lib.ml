@@ -1,9 +1,6 @@
 open Utils
 open My_parser  (* Assuming this is where `parse` is defined *)
 
-(* Re-export the parse function to make it accessible through Lib *)
-let parse = parse
-
 (* Helper function to convert a value to an expression *)
 let value_to_expr = function
   | VNum n -> Num n
@@ -78,12 +75,6 @@ let rec eval e =
           | Or -> Ok (VBool (b1 || b2))
           | _ -> Error (InvalidArgs op))
       | _ -> Error (InvalidArgs op))
-
-(* Combines parsing and evaluation *)
-let interp s =
-  match parse s with
-  | Some e -> eval e
-  | None -> Error ParseFail
 
 (* Combines parsing and evaluation *)
 let interp s =
