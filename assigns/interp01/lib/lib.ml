@@ -20,10 +20,10 @@ let rec subst v x e =
   | Num _ | Unit | True | False -> e
   | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
   | Let (y, e1, e2) ->
-      if y = x then Let (y, subst v x e1, e2)  (* Skip substitution in bound variable *)
+      if y = x then Let (y, subst v x e1, e2)  (* Stop substitution if variable is shadowed *)
       else Let (y, subst v x e1, subst v x e2)
   | Fun (y, e1) ->
-      if y = x then e  (* Skip substitution if the variable is bound *)
+      if y = x then e  (* Stop substitution if the function parameter shadows the variable *)
       else Fun (y, subst v x e1)
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
