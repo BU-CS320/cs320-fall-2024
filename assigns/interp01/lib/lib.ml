@@ -40,7 +40,8 @@ let rec eval e =
       (match eval e1 with
       | Ok (VBool true) -> eval e2
       | Ok (VBool false) -> eval e3
-      | _ -> Error InvalidIfCond)
+      | Ok _ -> Error InvalidIfCond  (* Ensure condition is Boolean *)
+      | Error err -> Error err)
   | Let (x, e1, e2) ->
       (match eval e1 with
       | Ok v -> eval (subst v x e2)
@@ -52,7 +53,8 @@ let rec eval e =
           match eval e2 with
           | Ok v -> eval (subst v x e)
           | Error err -> Error err)
-      | _ -> Error InvalidApp)
+      | Ok _ -> Error InvalidApp  (* Ensure that e1 evaluates to a function *)
+      | Error err -> Error err)
   | Bop (op, e1, e2) ->
       let apply_bop op v1 v2 = match op with
         | Add -> Ok (VNum (v1 + v2))
@@ -66,8 +68,7 @@ let rec eval e =
         | Gte -> Ok (VBool (v1 >= v2))
         | Eq -> Ok (VBool (v1 = v2))
         | Neq -> Ok (VBool (v1 <> v2))
-        | And -> Error (InvalidArgs op) (* `&&` and `||` are Boolean ops *)
-        | Or -> Error (InvalidArgs op)
+        | _ -> Error (InvalidArgs op)  (* Catch any other invalid argument cases *)
       in
       (match eval e1, eval e2 with
       | Ok (VNum v1), Ok (VNum v2) -> apply_bop op v1 v2
@@ -77,6 +78,12 @@ let rec eval e =
           | Or -> Ok (VBool (b1 || b2))
           | _ -> Error (InvalidArgs op))
       | _ -> Error (InvalidArgs op))
+
+(* Combines parsing and evaluation *)
+let interp s =
+  match parse s with
+  | Some e -> eval e
+  | None -> Error ParseFail
 
 (* Combines parsing and evaluation *)
 let interp s =
