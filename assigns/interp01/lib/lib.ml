@@ -27,14 +27,26 @@ let rec subst v x expr =
   | Var y -> if y = x then v_expr else Var y
   | Num _ | Unit | True | False -> expr
   | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
+  
   | Let (y, e1, e2) ->
       if y = x then Let (y, subst v x e1, e2)  (* Stop substitution in e2 if y shadows x *)
-      else Let (y, subst v x e1, subst v x e2)
+      else if List.mem y (free_vars v_expr) then
+        let y' = fresh_var y in  (* Rename y to avoid capture *)
+        Let (y', subst v x e1, subst v x (rename y y' e2))
+      else
+        Let (y, subst v x e1, subst v x e2)
+
   | Fun (y, e_body) ->
       if y = x then Fun (y, e_body)  (* Avoid substitution in function body if variable is shadowed *)
-      else Fun (y, subst v x e_body)
+      else if List.mem y (free_vars v_expr) then
+        let y' = fresh_var y in  (* Rename y to avoid capture *)
+        Fun (y', subst v x (rename y y' e_body))
+      else
+        Fun (y, subst v x e_body)
+  
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
+
 
 
 (* Evaluates expressions and returns a result or an error *)
