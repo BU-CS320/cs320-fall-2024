@@ -1,6 +1,7 @@
 (library
  (name interp01)
- (public_name interp01)             ; Make this library public
- (libraries interp01.my_parser interp01.utils stdlib320)  ; Use the public names for dependencies
+ (public_name interp01)
+ (modules lib)
+ (libraries interp01.utils interp01.my_parser stdlib320)  ; Reference libraries with public names
  (wrapped false)
  (flags (:standard -nostdlib -nopervasives -open Stdlib320)))
