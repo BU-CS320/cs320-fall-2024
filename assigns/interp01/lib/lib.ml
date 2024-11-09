@@ -1,7 +1,8 @@
 include Utils  (* Assuming Utils defines VNum, VBool, VUnit, VFun, etc. *)
 
-open My_parser  (* Assuming My_parser provides the parse function *)
+open My_parser  (* Import My_parser to access parse *)
 
+let parse = parse 
 (* Helper function to convert a value to an expression *)
 let value_to_expr = function
   | VNum n -> Num n
