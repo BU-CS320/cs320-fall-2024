@@ -1,5 +1,6 @@
 open Utils
-open My_parser
+open My_parser  (* Replace My_parser with the actual module name that contains the `parse` function *)
+
 (* Helper function to convert a value to an expression *)
 let value_to_expr = function
   | VNum n -> Num n
@@ -8,10 +9,11 @@ let value_to_expr = function
   | VUnit -> Unit
   | VFun (x, e) -> Fun (x, e)
 
-(* Substitutes `v` for variable `x` in expression `e` *)
+(* Substitutes `v` (of type value) for variable `x` in expression `e` *)
 let rec subst v x e =
+  let v_expr = value_to_expr v in  (* Convert `value` to `expr` *)
   match e with
-  | Var y -> if y = x then v else e
+  | Var y -> if y = x then v_expr else e
   | Num _ | Unit | True | False -> e
   | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
   | Let (y, e1, e2) ->
@@ -38,14 +40,14 @@ let rec eval e =
       | _ -> Error InvalidIfCond)
   | Let (x, e1, e2) ->
       (match eval e1 with
-      | Ok v -> eval (subst (value_to_expr v) x e2)
+      | Ok v -> eval (subst v x e2)
       | Error err -> Error err)
   | Fun (x, e) -> Ok (VFun (x, e))
   | App (e1, e2) ->
       (match eval e1 with
       | Ok (VFun (x, e)) -> (
           match eval e2 with
-          | Ok v -> eval (subst (value_to_expr v) x e)
+          | Ok v -> eval (subst v x e)
           | Error err -> Error err)
       | _ -> Error InvalidApp)
   | Bop (op, e1, e2) ->
