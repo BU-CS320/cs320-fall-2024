@@ -1,9 +1,13 @@
-include Utils
+(* lib.ml *)
 
-open My_parser
+include Utils  (* Re-export everything from Utils to make it accessible *)
 
+open My_parser  (* Ensure this imports the parse function correctly *)
+
+(* Re-export the parse function to make it accessible as Lib.parse *)
 let parse = parse
 
+(* Helper function to convert a value to an expression *)
 let value_to_expr = function
   | VNum n -> Num n
   | VBool true -> True
@@ -11,6 +15,7 @@ let value_to_expr = function
   | VUnit -> Unit
   | VFun (x, e) -> Fun (x, e)
 
+(* Substitutes v (of type value) for variable x in expression e *)
 let rec subst v x e =
   let v_expr = value_to_expr v in
   match e with
@@ -26,7 +31,7 @@ let rec subst v x e =
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
 
-
+(* Evaluates expressions and returns a result or an error *)
 let rec eval e =
   match e with
   | Num n -> Ok (VNum n)
@@ -44,9 +49,6 @@ let rec eval e =
       (match eval e1 with
       | Ok v -> eval (subst v x e2)
       | Error err -> Error err)
-  | LetRec (f, x, e_body) -> 
-      let rec f_val = VFun (x, subst f f_val e_body) in
-      Ok f_val
   | Fun (x, e) -> Ok (VFun (x, e))
   | App (e1, e2) ->
       (match eval e1 with
@@ -80,13 +82,8 @@ let rec eval e =
           | _ -> Error (InvalidArgs op))
       | _ -> Error (InvalidArgs op))
 
+(* Combines parsing and evaluation *)
 let interp s =
   match parse s with
   | Some e -> eval e
-  | None -> Error ParseFail
-
-(* Interpreter function *)
-let interp s =
-  match parse s with
-  | Some prog -> eval prog
   | None -> Error ParseFail
