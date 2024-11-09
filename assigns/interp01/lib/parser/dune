@@ -1,6 +1,8 @@
 (library
  (name my_parser)
  (public_name interp01.my_parser)
- (libraries interp01.utils))      ; Use the public name of `utils`
-(menhir (modules par))             ; Specifies `par.mly` as a Menhir parser
-(ocamllex lex)                     ; Specifies `lex.mll` as an OCamllex lexer
+ (libraries interp01.utils))
+
+(menhir (modules par))
+
+(ocamllex lex)
