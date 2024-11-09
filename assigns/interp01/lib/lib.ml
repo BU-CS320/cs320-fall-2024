@@ -1,5 +1,13 @@
 open Utils
 
+(* Helper function to convert a value to an expression *)
+let value_to_expr = function
+  | VNum n -> Num n
+  | VBool true -> True
+  | VBool false -> False
+  | VUnit -> Unit
+  | VFun (x, e) -> Fun (x, e)
+
 (* Substitutes `v` for variable `x` in expression `e` *)
 let rec subst v x e =
   match e with
@@ -30,14 +38,14 @@ let rec eval e =
       | _ -> Error InvalidIfCond)
   | Let (x, e1, e2) ->
       (match eval e1 with
-      | Ok v -> eval (subst v x e2)
+      | Ok v -> eval (subst (value_to_expr v) x e2)
       | Error err -> Error err)
   | Fun (x, e) -> Ok (VFun (x, e))
   | App (e1, e2) ->
       (match eval e1 with
       | Ok (VFun (x, e)) -> (
           match eval e2 with
-          | Ok v -> eval (subst v x e)
+          | Ok v -> eval (subst (value_to_expr v) x e)
           | Error err -> Error err)
       | _ -> Error InvalidApp)
   | Bop (op, e1, e2) ->
