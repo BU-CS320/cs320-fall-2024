@@ -1,1 +1,3 @@
-(library (name utils))
+(library
+ (name utils)
+ (public_name interp01.utils)) ; Make `utils` publicly accessible as `interp01.utils`
