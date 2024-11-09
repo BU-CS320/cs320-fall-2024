@@ -55,7 +55,7 @@ let rec eval expr =
   | App (_, _) -> Error InvalidApp
 
   (* Error cases for operators *)
-  | Bop (_, _, _) -> Error InvalidArgs
+  | Bop (_, _, _) -> Error (InvalidArgs "Invalid argument types for binary operation")
   | _ -> Error UnknownVar
 
 (* Interpreter function *)
