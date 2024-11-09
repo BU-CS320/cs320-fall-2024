@@ -1,3 +1,6 @@
 (library
- (name utils)
- (public_name interp01.utils))  ; Make sure it has a public name
+ (name interp01)
+ (public_name interp01)
+ (modules lib)
+ (libraries interp01.utils interp01.my_parser)
+ (wrapped false))
