@@ -1,5 +1,8 @@
-open Utils
-open My_parser  (* Ensure this module name matches where `parse` is defined *)
+(* lib.ml *)
+
+include Utils  (* Re-export everything from Utils to make it accessible *)
+
+open My_parser  (* Ensure this imports the parse function correctly *)
 
 (* Re-export the parse function to make it accessible as Lib.parse *)
 let parse = parse
@@ -14,16 +17,16 @@ let value_to_expr = function
 
 (* Substitutes `v` (of type value) for variable `x` in expression `e` *)
 let rec subst v x e =
-  let v_expr = value_to_expr v in  (* Convert `value` to `expr` *)
+  let v_expr = value_to_expr v in
   match e with
   | Var y -> if y = x then v_expr else e
   | Num _ | Unit | True | False -> e
   | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
   | Let (y, e1, e2) ->
-      if y = x then Let (y, subst v x e1, e2)  (* Stop substitution if variable is shadowed *)
+      if y = x then Let (y, subst v x e1, e2)
       else Let (y, subst v x e1, subst v x e2)
   | Fun (y, e1) ->
-      if y = x then e  (* Stop substitution if the function parameter shadows the variable *)
+      if y = x then e
       else Fun (y, subst v x e1)
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
@@ -40,7 +43,7 @@ let rec eval e =
       (match eval e1 with
       | Ok (VBool true) -> eval e2
       | Ok (VBool false) -> eval e3
-      | Ok _ -> Error InvalidIfCond  (* Ensure condition is Boolean *)
+      | Ok _ -> Error InvalidIfCond
       | Error err -> Error err)
   | Let (x, e1, e2) ->
       (match eval e1 with
@@ -53,7 +56,7 @@ let rec eval e =
           match eval e2 with
           | Ok v -> eval (subst v x e)
           | Error err -> Error err)
-      | Ok _ -> Error InvalidApp  (* Ensure that e1 evaluates to a function *)
+      | Ok _ -> Error InvalidApp
       | Error err -> Error err)
   | Bop (op, e1, e2) ->
       let apply_bop op v1 v2 = match op with
@@ -68,7 +71,7 @@ let rec eval e =
         | Gte -> Ok (VBool (v1 >= v2))
         | Eq -> Ok (VBool (v1 = v2))
         | Neq -> Ok (VBool (v1 <> v2))
-        | _ -> Error (InvalidArgs op)  (* Ensure all other cases throw an error *)
+        | _ -> Error (InvalidArgs op)
       in
       (match eval e1, eval e2 with
       | Ok (VNum v1), Ok (VNum v2) -> apply_bop op v1 v2
@@ -84,3 +87,4 @@ let interp s =
   match parse s with
   | Some e -> eval e
   | None -> Error ParseFail
+
