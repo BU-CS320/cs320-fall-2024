@@ -1,69 +1,91 @@
-include Utils  (* Re-export everything from Utils to make it accessible *)
+include Utils
 
-open My_parser  (* Import the parse function correctly *)
+open My_parser
 
-(* Re-export the parse function to make it accessible as Lib.parse *)
 let parse = parse
 
-(* Substitute value `v` for variable `x` in expression `e`, capture-avoiding *)
+let value_to_expr = function
+  | VNum n -> Num n
+  | VBool true -> True
+  | VBool false -> False
+  | VUnit -> Unit
+  | VFun (x, e) -> Fun (x, e)
+
 let rec subst v x e =
+  let v_expr = value_to_expr v in
   match e with
-  | Var y when y = x -> v  (* Replace the variable *)
-  | Var y -> Var y  (* Leave other variables unchanged *)
-  | Num n -> Num n
-  | Unit -> Unit
-  | True -> True
-  | False -> False
+  | Var y -> if y = x then v_expr else e
+  | Num _ | Unit | True | False -> e
   | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
-  | Let (y, e1, e2) when y <> x -> Let (y, subst v x e1, subst v x e2)
-  | Fun (y, e_body) when y <> x -> Fun (y, subst v x e_body)
-  | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
+  | Let (y, e1, e2) ->
+      if y = x then Let (y, subst v x e1, e2)
+      else Let (y, subst v x e1, subst v x e2)
+  | LetRec (f, y, e_body) ->
+      if f = x then e  (* Don't substitute in the body of the recursive function *)
+      else LetRec (f, y, subst v x e_body)
+  | Fun (y, e1) ->
+      if y = x then e
+      else Fun (y, subst v x e1)
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
-  | _ -> e  (* Handle other cases appropriately *)
+  | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
 
-(* Evaluation function *)
-let rec eval expr =
-  match expr with
-  | Num n -> Ok (Num n)
-  | True -> Ok True
-  | False -> Ok False
-  | Unit -> Ok Unit
-
-  (* Arithmetic operations *)
-  | Bop (Add, Num n1, Num n2) -> Ok (Num (n1 + n2))
-  | Bop (Sub, Num n1, Num n2) -> Ok (Num (n1 - n2))
-  | Bop (Mul, Num n1, Num n2) -> Ok (Num (n1 * n2))
-  | Bop (Div, _, Num 0) -> Error DivByZero
-  | Bop (Div, Num n1, Num n2) -> Ok (Num (n1 / n2))
-  | Bop (Mod, _, Num 0) -> Error DivByZero
-  | Bop (Mod, Num n1, Num n2) -> Ok (Num (n1 mod n2))
-
-  (* Boolean operations *)
-  | If (cond, e_then, e_else) ->
-      (match eval cond with
-       | Ok True -> eval e_then
-       | Ok False -> eval e_else
-       | _ -> Error InvalidIfCond)
-
-  (* Let bindings *)
+let rec eval e =
+  match e with
+  | Num n -> Ok (VNum n)
+  | True -> Ok (VBool true)
+  | False -> Ok (VBool false)
+  | Unit -> Ok VUnit
+  | Var x -> Error (UnknownVar x)
+  | If (e1, e2, e3) ->
+      (match eval e1 with
+      | Ok (VBool true) -> eval e2
+      | Ok (VBool false) -> eval e3
+      | Ok _ -> Error InvalidIfCond
+      | Error err -> Error err)
   | Let (x, e1, e2) ->
       (match eval e1 with
-       | Ok v -> eval (subst v x e2)
-       | Error _ as err -> err)
+      | Ok v -> eval (subst v x e2)
+      | Error err -> Error err)
+  | LetRec (f, x, e_body) -> 
+      let rec f_val = VFun (x, subst f f_val e_body) in
+      Ok f_val
+  | Fun (x, e) -> Ok (VFun (x, e))
+  | App (e1, e2) ->
+      (match eval e1 with
+      | Ok (VFun (x, e)) -> (
+          match eval e2 with
+          | Ok v -> eval (subst v x e)
+          | Error err -> Error err)
+      | Ok _ -> Error InvalidApp
+      | Error err -> Error err)
+  | Bop (op, e1, e2) ->
+      let apply_bop op v1 v2 = match op with
+        | Add -> Ok (VNum (v1 + v2))
+        | Sub -> Ok (VNum (v1 - v2))
+        | Mul -> Ok (VNum (v1 * v2))
+        | Div -> if v2 = 0 then Error DivByZero else Ok (VNum (v1 / v2))
+        | Mod -> if v2 = 0 then Error DivByZero else Ok (VNum (v1 mod v2))
+        | Lt -> Ok (VBool (v1 < v2))
+        | Lte -> Ok (VBool (v1 <= v2))
+        | Gt -> Ok (VBool (v1 > v2))
+        | Gte -> Ok (VBool (v1 >= v2))
+        | Eq -> Ok (VBool (v1 = v2))
+        | Neq -> Ok (VBool (v1 <> v2))
+        | _ -> Error (InvalidArgs op)
+      in
+      (match eval e1, eval e2 with
+      | Ok (VNum v1), Ok (VNum v2) -> apply_bop op v1 v2
+      | Ok (VBool b1), Ok (VBool b2) -> (
+          match op with
+          | And -> Ok (VBool (b1 && b2))
+          | Or -> Ok (VBool (b1 || b2))
+          | _ -> Error (InvalidArgs op))
+      | _ -> Error (InvalidArgs op))
 
-  (* Function application *)
-  | App (Fun (x, e_body), e_arg) ->
-      (match eval e_arg with
-       | Ok v -> eval (subst v x e_body)
-       | Error _ as err -> err)
-  | App (_, _) -> Error InvalidApp
-
-  (* Error cases for invalid operators and unknown variables *)
-  | Bop (op, _, _) -> Error (InvalidArgs op)
-  | Var x -> Error (UnknownVar x)
-  | Fun (x, e_body) -> Ok (Fun (x, e_body))  (* Return function itself as a value if needed *)
-
-
+let interp s =
+  match parse s with
+  | Some e -> eval e
+  | None -> Error ParseFail
 
 (* Interpreter function *)
 let interp s =
