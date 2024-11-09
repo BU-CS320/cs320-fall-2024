@@ -82,6 +82,7 @@ let rec eval e =
           | _ -> Error (InvalidArgs op))
       | _ -> Error (InvalidArgs op))
 
+
 (* Combines parsing and evaluation *)
 let interp s =
   match parse s with
