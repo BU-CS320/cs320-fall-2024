@@ -1,11 +1,6 @@
-(* lib.ml *)
+include Utils  (* Assuming Utils defines VNum, VBool, VUnit, VFun, etc. *)
 
-include Utils  (* Re-export everything from Utils to make it accessible *)
-
-open My_parser  (* Ensure this imports the parse function correctly *)
-
-(* Re-export the parse function to make it accessible as Lib.parse *)
-let parse = parse
+open My_parser  (* Assuming My_parser provides the parse function *)
 
 (* Helper function to convert a value to an expression *)
 let value_to_expr = function
@@ -15,19 +10,42 @@ let value_to_expr = function
   | VUnit -> Unit
   | VFun (x, e) -> Fun (x, e)
 
-(* Substitutes v (of type value) for variable x in expression e *)
+(* Helper function to generate a fresh variable name *)
+let fresh_var x = x ^ "'"
+
+(* Collects free variables in an expression *)
+let rec free_vars expr =
+  match expr with
+  | Var x -> [x]
+  | Num _ | Unit | True | False -> []
+  | If (e1, e2, e3) -> free_vars e1 @ free_vars e2 @ free_vars e3
+  | Let (x, e1, e2) -> free_vars e1 @ List.filter (fun y -> y <> x) (free_vars e2)
+  | Fun (x, e_body) -> List.filter (fun y -> y <> x) (free_vars e_body)
+  | App (e1, e2) -> free_vars e1 @ free_vars e2
+  | Bop (_, e1, e2) -> free_vars e1 @ free_vars e2
+
+(* Renames all instances of old_name to new_name in an expression *)
+let rec rename old_name new_name expr =
+  match expr with
+  | Var x -> if x = old_name then Var new_name else Var x
+  | Num _ | Unit | True | False -> expr
+  | If (e1, e2, e3) -> If (rename old_name new_name e1, rename old_name new_name e2, rename old_name new_name e3)
+  | Let (x, e1, e2) ->
+      if x = old_name then Let (x, rename old_name new_name e1, e2)
+      else Let (x, rename old_name new_name e1, rename old_name new_name e2)
+  | Fun (x, e_body) ->
+      if x = old_name then Fun (x, e_body)
+      else Fun (x, rename old_name new_name e_body)
+  | App (e1, e2) -> App (rename old_name new_name e1, rename old_name new_name e2)
+  | Bop (op, e1, e2) -> Bop (op, rename old_name new_name e1, rename old_name new_name e2)
+
+(* Substitution function with capture avoidance *)
 let rec subst v x expr =
-  let v_expr = match v with
-    | VNum n -> Num n
-    | VBool b -> if b then True else False
-    | VUnit -> Unit
-    | VFun (arg, body) -> Fun (arg, body)
-  in
+  let v_expr = value_to_expr v in
   match expr with
   | Var y -> if y = x then v_expr else Var y
   | Num _ | Unit | True | False -> expr
   | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
-  
   | Let (y, e1, e2) ->
       if y = x then Let (y, subst v x e1, e2)  (* Stop substitution in e2 if y shadows x *)
       else if List.mem y (free_vars v_expr) then
@@ -35,7 +53,6 @@ let rec subst v x expr =
         Let (y', subst v x e1, subst v x (rename y y' e2))
       else
         Let (y, subst v x e1, subst v x e2)
-
   | Fun (y, e_body) ->
       if y = x then Fun (y, e_body)  (* Avoid substitution in function body if variable is shadowed *)
       else if List.mem y (free_vars v_expr) then
@@ -43,26 +60,10 @@ let rec subst v x expr =
         Fun (y', subst v x (rename y y' e_body))
       else
         Fun (y, subst v x e_body)
-  
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
 
-let rec free_vars expr =
-  match expr with
-  | Var x -> [x]  (* A variable by itself is free *)
-  | Num _ | Unit | True | False -> []  (* Literals have no free variables *)
-  | If (e1, e2, e3) -> free_vars e1 @ free_vars e2 @ free_vars e3
-  | Let (x, e1, e2) ->
-      free_vars e1 @ List.filter (fun y -> y <> x) (free_vars e2)
-      (* e1 can have free variables, but x is bound in e2 *)
-  | Fun (x, e_body) ->
-      List.filter (fun y -> y <> x) (free_vars e_body)
-      (* x is bound in e_body *)
-  | App (e1, e2) -> free_vars e1 @ free_vars e2
-  | Bop (_, e1, e2) -> free_vars e1 @ free_vars e2
-
-
-(* Evaluates expressions and returns a result or an error *)
+(* Evaluation function *)
 let rec eval expr =
   match expr with
   | Num n -> Ok (VNum n)
@@ -70,7 +71,6 @@ let rec eval expr =
   | False -> Ok (VBool false)
   | Unit -> Ok VUnit
   | Var x -> Error (UnknownVar x)
-  
   | If (cond, e_then, e_else) -> (
       match eval cond with
       | Ok (VBool true) -> eval e_then
@@ -78,15 +78,12 @@ let rec eval expr =
       | Ok _ -> Error InvalidIfCond
       | Error err -> Error err
     )
-  
   | Let (x, e1, e2) -> (
       match eval e1 with
       | Ok v -> eval (subst v x e2)
       | Error err -> Error err
     )
-  
   | Fun (x, e_body) -> Ok (VFun (x, e_body))
-  
   | App (e1, e2) -> (
       match eval e1 with
       | Ok (VFun (x, e_body)) -> (
@@ -97,7 +94,6 @@ let rec eval expr =
       | Ok _ -> Error InvalidApp
       | Error err -> Error err
     )
-  
   | Bop (op, e1, e2) ->
       let apply_bop op v1 v2 =
         match op with
@@ -124,9 +120,7 @@ let rec eval expr =
         )
       | _ -> Error (InvalidArgs op))
 
-
-
-(* Combines parsing and evaluation *)
+(* Interpreter function *)
 let interp s =
   match parse s with
   | Some expr -> eval expr
