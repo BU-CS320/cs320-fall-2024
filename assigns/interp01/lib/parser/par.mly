@@ -1,68 +1,82 @@
 %{
-  open Utils
+open Utils
+
+let rec mk_app e = function
+  | [] -> e
+  | x :: es -> mk_app (App (e, x)) es
 %}
 
 %token <int> NUM
 %token <string> VAR
-%token IF THEN ELSE LET IN FUN ARROW
-%token TRUE FALSE LPAREN RPAREN
-%token ADD SUB MUL DIV MOD LT LTE GT GTE EQ NEQ AND OR
+%token UNIT
+%token TRUE
+%token FALSE
+%token LPAREN
+%token RPAREN
+%token ADD
+%token SUB
+%token MUL
+%token DIV
+%token MOD
+%token LT
+%token LTE
+%token GT
+%token GTE
+%token EQ
+%token NEQ
+%token AND
+%token OR
+%token IF
+%token THEN
+%token ELSE
+%token LET
+%token IN
+%token FUN
+%token ARROW
+
 %token EOF
 
+%right OR
+%right AND
+%left LT LTE GT GTE EQ NEQ
+%left ADD SUB
+%left MUL DIV MOD
+
 %start <Utils.prog> prog
-%type <Utils.expr> expr
 
 %%
 
 prog:
-  | expr EOF { $1 }
+  | e = expr EOF { e }
 
 expr:
-  | IF expr THEN expr ELSE expr { If ($2, $4, $6) }
-  | LET VAR EQ expr IN expr { Let ($2, $4, $6) }
-  | FUN VAR ARROW expr { Fun ($2, $4) }
-  | logical_expr { $1 }
+  | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr { If (e1, e2, e3) }
+  | LET; x = VAR; EQ; e1 = expr; IN; e2 = expr { Let (x, e1, e2) }
+  | FUN; x = VAR; ARROW; e = expr { Fun (x, e) }
+  | e = expr2 { e }
 
-logical_expr:
-  | logical_expr OR and_expr { Bop (Or, $1, $3) }
-  | and_expr { $1 }
+%inline bop:
+  | ADD { Add }
+  | SUB { Sub }
+  | MUL { Mul }
+  | DIV { Div }
+  | MOD { Mod }
+  | LT { Lt }
+  | LTE { Lte }
+  | GT { Gt }
+  | GTE { Gte }
+  | EQ { Eq }
+  | NEQ { Neq }
+  | AND { And }
+  | OR { Or }
 
-and_expr:
-  | and_expr AND comparison_expr { Bop (And, $1, $3) }
-  | comparison_expr { $1 }
-
-comparison_expr:
-  | comparison_expr LT add_expr { Bop (Lt, $1, $3) }
-  | comparison_expr LTE add_expr { Bop (Lte, $1, $3) }
-  | comparison_expr GT add_expr { Bop (Gt, $1, $3) }
-  | comparison_expr GTE add_expr { Bop (Gte, $1, $3) }
-  | comparison_expr EQ add_expr { Bop (Eq, $1, $3) }
-  | comparison_expr NEQ add_expr { Bop (Neq, $1, $3) }
-  | add_expr { $1 }
-
-add_expr:
-  | add_expr ADD mul_expr { Bop (Add, $1, $3) }
-  | add_expr SUB mul_expr { Bop (Sub, $1, $3) }
-  | mul_expr { $1 }
-
-mul_expr:
-  | mul_expr MUL primary_expr { Bop (Mul, $1, $3) }
-  | mul_expr DIV primary_expr { Bop (Div, $1, $3) }
-  | mul_expr MOD primary_expr { Bop (Mod, $1, $3) }
-  | primary_expr { $1 }
-
-primary_expr:
-  | primary_expr_atomic primary_expr_seq { List.fold_left (fun acc e -> App (acc, e)) $1 $2 }
-  | primary_expr_atomic { $1 }
-
-primary_expr_atomic:
-  | LPAREN expr RPAREN { $2 }
+expr2:
+  | e1 = expr2; op = bop; e2 = expr2 { Bop (op, e1, e2) }
+  | e = expr3; es = expr3* { mk_app e es }
+expr3:
+  | UNIT { Unit }
   | TRUE { True }
   | FALSE { False }
-  | NUM { Num $1 }
-  | VAR { Var $1 }
-  | LPAREN RPAREN { Unit }
-
-primary_expr_seq:
-  | primary_expr_atomic primary_expr_seq { $1 :: $2 }
-  | primary_expr_atomic { [$1] }
+  | n = NUM { Num n }
+  | x = VAR { Var x }
+  | LPAREN; e = expr; RPAREN { e }
