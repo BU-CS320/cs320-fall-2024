@@ -80,7 +80,8 @@ let rec eval expr =
         | Gte -> Ok (VBool (v1 >= v2))
         | Eq -> Ok (VBool (v1 = v2))
         | Neq -> Ok (VBool (v1 <> v2))
-        | _ -> Error InvalidArgs
+        | _ -> Error (InvalidArgs Add)  (* Replace 'Add' with a specific operator or error context *)
+
       in
       (match eval e1, eval e2 with
        | Ok (VNum v1), Ok (VNum v2) -> apply_bop op v1 v2  (* Arithmetic and comparison operators *)
