@@ -1,6 +1,9 @@
 open Utils
 open My_parser  (* Replace My_parser with the actual module name that contains the `parse` function *)
 
+(* Re-export the parse function to make it accessible through Lib *)
+let parse = parse
+
 (* Helper function to convert a value to an expression *)
 let value_to_expr = function
   | VNum n -> Num n
