@@ -1,0 +1,9 @@
+(lang dune 3.16)
+
+(name interp01)
+
+(package
+ (name interp01)
+ (depends ocaml dune ounit2 stdlib320))
+
+(using menhir 2.1)
