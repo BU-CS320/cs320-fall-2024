@@ -47,6 +47,19 @@ let rec subst v x expr =
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
 
+let rec free_vars expr =
+  match expr with
+  | Var x -> [x]  (* A variable by itself is free *)
+  | Num _ | Unit | True | False -> []  (* Literals have no free variables *)
+  | If (e1, e2, e3) -> free_vars e1 @ free_vars e2 @ free_vars e3
+  | Let (x, e1, e2) ->
+      free_vars e1 @ List.filter (fun y -> y <> x) (free_vars e2)
+      (* e1 can have free variables, but x is bound in e2 *)
+  | Fun (x, e_body) ->
+      List.filter (fun y -> y <> x) (free_vars e_body)
+      (* x is bound in e_body *)
+  | App (e1, e2) -> free_vars e1 @ free_vars e2
+  | Bop (_, e1, e2) -> free_vars e1 @ free_vars e2
 
 
 (* Evaluates expressions and returns a result or an error *)
