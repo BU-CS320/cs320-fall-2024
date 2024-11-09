@@ -56,8 +56,8 @@ let rec eval expr =
 
   (* Error cases for operators *)
   | Bop (op, _, _) -> Error (InvalidArgs op)
+  | Var x -> Error (UnknownVar x)
 
-  | _ -> Error UnknownVar
 
 (* Interpreter function *)
 let interp s =
