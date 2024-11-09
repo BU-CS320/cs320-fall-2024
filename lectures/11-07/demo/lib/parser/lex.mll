@@ -10,6 +10,7 @@ rule read =
   parse
   | "fun" { FUN }
   | "let" { LET }
+  | "rec" { REC }
   | "=" { EQUALS }
   | "in" { IN }
   | "->" { ARROW }

@@ -11,10 +11,11 @@ type expr =
   | If of expr * expr * expr
   | App of expr * expr
   | Let of string * expr * expr
+  | LetRec of string * string * expr * expr
 
 type prog = expr
 
 type value =
   | VBool of bool
   | VNum of int
-  | VFun of string * expr
+  | VClos of string * expr * value env * string option
