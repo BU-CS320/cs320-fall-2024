@@ -28,9 +28,11 @@ let rec subst v x expr =
   | Num _ | Unit | True | False -> expr
   | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
   | Let (y, e1, e2) ->
-      if y = x then Let (y, subst v x e1, e2) else Let (y, subst v x e1, subst v x e2)
+      if y = x then Let (y, subst v x e1, e2)  (* Stop substitution in e2 if y shadows x *)
+      else Let (y, subst v x e1, subst v x e2)
   | Fun (y, e_body) ->
-      if y = x then Fun (y, e_body) else Fun (y, subst v x e_body)
+      if y = x then Fun (y, e_body)  (* Avoid substitution in function body if variable is shadowed *)
+      else Fun (y, subst v x e_body)
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
 
@@ -96,6 +98,7 @@ let rec eval expr =
           | _ -> Error (InvalidArgs op)
         )
       | _ -> Error (InvalidArgs op))
+
 
 
 (* Combines parsing and evaluation *)
