@@ -30,7 +30,7 @@ let rec mk_app e = function
 %token THEN
 %token ELSE
 %token LET
-%token REC  (* New token for "rec" *)
+%token REC           
 %token IN
 %token FUN
 %token ARROW
@@ -43,7 +43,7 @@ let rec mk_app e = function
 %left ADD SUB
 %left MUL DIV MOD
 
-%start <Utils.prog> prog
+%start <Utils.expr> prog
 
 %%
 
@@ -52,7 +52,7 @@ prog:
 
 expr:
   | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr { If (e1, e2, e3) }
-  | LET; REC; x = VAR; EQ; e1 = expr; IN; e2 = expr { LetRec (x, e1, e2) }  (* New rule for let rec *)
+  | LET; REC; x = VAR; EQ; e1 = expr; IN; e2 = expr { LetRec (x, e1, e2) }
   | LET; x = VAR; EQ; e1 = expr; IN; e2 = expr { Let (x, e1, e2) }
   | FUN; x = VAR; ARROW; e = expr { Fun (x, e) }
   | e = expr2 { e }
