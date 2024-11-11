@@ -52,7 +52,7 @@ prog:
 
 expr:
   | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr { If (e1, e2, e3) }
-  | LET; REC; x = VAR; EQ; e1 = expr; IN; e2 = expr { LetRec (x, e1, $7) }  (* New rule for let rec *)
+  | LET; REC; x = VAR; EQ; e1 = expr; IN; e2 = expr { LetRec (x, e1, e2) }  (* Use named symbol e2 instead of $7 *)
   | LET; x = VAR; EQ; e1 = expr; IN; e2 = expr { Let ($2, $4, $6) }
   | FUN; x = VAR; ARROW; e = expr { Fun (x, e) }
   | e = expr2 { e }
