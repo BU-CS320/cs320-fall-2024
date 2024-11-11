@@ -3,6 +3,7 @@ include Utils  (* Assuming Utils defines VNum, VBool, VUnit, VFun, etc. *)
 open My_parser  (* Import My_parser to access parse *)
 
 let parse = parse 
+
 (* Helper function to convert a value to an expression *)
 let value_to_expr = function
   | VNum n -> Num n
@@ -65,7 +66,7 @@ let rec subst v x expr =
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
 
 
-(* Evaluation function *)
+(* Evaluation function with LetRec support *)
 let rec eval expr =
   match expr with
   | Num n -> Ok (VNum n)
@@ -96,6 +97,15 @@ let rec eval expr =
       | Ok _ -> Error InvalidApp
       | Error err -> Error err
     )
+  
+  (* New case for recursive functions with let rec *)
+  | LetRec (f, Fun (arg, e_body), e2) ->
+      let rec_func = VFun (arg, Let (f, Var f, e_body)) in
+      eval (subst rec_func f e2)
+
+  (* Error if LetRec is not used with a function *)
+  | LetRec (_, _, _) -> Error InvalidRecFunc
+
   | Bop (op, e1, e2) ->
       let apply_bop op v1 v2 =
         match op with
