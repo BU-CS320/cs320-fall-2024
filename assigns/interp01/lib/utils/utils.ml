@@ -11,6 +11,7 @@ type expr =
   | Bop of bop * expr * expr
   | If of expr * expr * expr
   | Let of string * expr * expr
+  | LetRec of string * expr * expr   (* New LetRec constructor for recursive let expressions *)
   | Fun of string * expr
 
 type prog = expr
@@ -58,3 +59,4 @@ let err_msg = function
   | InvalidApp -> "non-function value used in function application"
   | UnknownVar x -> "unknown variable \'" ^ x ^ "\'"
   | ParseFail -> "syntax error"
+
