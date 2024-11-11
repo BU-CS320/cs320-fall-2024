@@ -30,7 +30,7 @@ rule read =
   | "then" { THEN }
   | "else" { ELSE }
   | "let" { LET }
-  | "rec" { REC } 
+  | "rec" { REC }  
   | "in" { IN }
   | "fun" { FUN }
   | "->" { ARROW }
