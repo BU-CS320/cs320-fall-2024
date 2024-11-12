@@ -1,0 +1,4 @@
+(library
+ (name demo)
+ (libraries utils my_parser stdlib320)
+ (flags (:standard -nostdlib -nopervasives -open Stdlib320)))
