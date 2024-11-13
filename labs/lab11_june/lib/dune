@@ -1,0 +1,9 @@
+(library
+ (name lab)
+ (libraries menhirLib))
+
+(menhir
+ (flags --table)
+ (modules par))
+
+(ocamllex lex)
