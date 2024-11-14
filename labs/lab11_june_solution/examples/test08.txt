@@ -1,0 +1,7 @@
+let rec kmccarthy (x : int) (k : int -> int) : int =
+  if x <= 100 then
+    kmccarthy (x + 11) (fun res -> 
+    kmccarthy res k) 
+  else k (x - 10)
+in
+kmccarthy 22 (fun x -> x)
