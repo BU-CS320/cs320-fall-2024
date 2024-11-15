@@ -21,10 +21,12 @@ open Utils
 %token MINUS "-"
 %token TRUE "true"
 %token FALSE "false"
-
 %token COLON ":"
-%token INT "int"
-%token BOOL "bool"
+%token INTTY "int"
+%token BOOLTY "bool"
+
+%token UNIT "()"
+%token UNITTY "unit"
 
 %right ARROW
 %left EQUALS
@@ -36,20 +38,27 @@ open Utils
 %%
 
 prog:
-  | e = expr EOF { e }
+  | ls = toplet* EOF { ls }
+
+toplet:
+  | "let" x = VAR ":" ty = ty "=" e = expr
+    { TopLet(x, ty, e) }
+  | "let" "rec" f = VAR "(" x = VAR ":" ty_arg = ty ")"
+     ":" ty_out = ty "=" e = expr
+     { TopLetRec(f, x, ty_arg, ty_out, e) }
 
 ty:
   | "int" { IntTy }
   | "bool" { BoolTy }
+  | "unit" { UnitTy }
   | t1 = ty "->" t2 = ty { FunTy (t1, t2) }
   | "(" ty = ty ")" { ty }
 
 expr:
   | "let" x = VAR ":" ty = ty "=" e1 = expr "in" e2 = expr { Let(x, ty, e1, e2) }
-  | "let" "rec" f = VAR
-    "(" x = VAR ":" ty_arg = ty ")"
-    ":" ty_val = ty "=" e1 = expr "in" e2 = expr
-    { LetRec(f, x, ty_arg, ty_val, e1, e2) }
+  | "let" "rec" f = VAR "(" x = VAR ":" ty_arg = ty ")"
+    ":" ty_out = ty "=" e1 = expr "in" e2 = expr
+    { LetRec(f, x, ty_arg, ty_out, e1, e2) }
   | "if" e1 = expr "then" e2 = expr "else" e3 = expr { If (e1, e2, e3) }
   | "fun" "(" x = VAR ":" ty = ty ")" "->" e = expr { Fun(x, ty, e) }
   | e = expr2 { e }
@@ -65,6 +74,7 @@ expr2:
 expr3:
   | x = VAR { Var x }
   | n = NUM { Num n }
+  | "()" { Unit }
   | "true" { True }
   | "false" { False }
   | "(" e = expr ")" { e }

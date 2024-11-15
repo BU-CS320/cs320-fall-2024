@@ -1,10 +1,11 @@
 type ty =
-  | IntTy
-  | BoolTy
   | UnitTy
+  | BoolTy
+  | IntTy
   | FunTy of ty * ty
 
 type expr =
+  | Unit
   | True
   | False
   | Var of string
@@ -19,9 +20,14 @@ type expr =
   | Let of string * ty * expr * expr
   | LetRec of string * string * ty * ty * expr * expr
 
-type prog = expr
+type toplet =
+  | TopLet of string * ty * expr
+  | TopLetRec of string * string * ty * ty * expr
+
+type prog = toplet list
 
 type value =
+  | VUnit
   | VBool of bool
   | VNum of int
   | VClos of string * expr * value env * string option
