@@ -14,12 +14,12 @@ open Utils
 %token COLON ARROW ASSERT
 %token EOF
 
-%start <sfexpr> prog  (* Change output type to sfexpr *)
+%start <sfexpr> prog  (* Output type is sfexpr *)
 
 %%
 
 prog:
-  | toplets EOF { SToplets $1 }  (* Wrap in a specific sfexpr constructor *)
+  | toplets EOF { SToplets $1 }  (* Wrap in SToplets constructor *)
 
 toplets:
   | /* empty */ { [] }
@@ -37,8 +37,8 @@ arg:
   | LPAREN VAR COLON ty RPAREN { ($2, $4) }
 
 ty:
-  | INT { SIntTy }
-  | BOOL { SBoolTy }
+  | INT { SIntTy }         (* Use SIntTy for surface-level type *)
+  | BOOL { SBoolTy }       (* Use SBoolTy for surface-level type *)
   | UNIT { SUnitTy }
   | ty ARROW ty { SFunTy ($1, $3) }
   | LPAREN ty RPAREN { $2 }
