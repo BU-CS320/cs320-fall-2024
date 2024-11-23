@@ -30,8 +30,10 @@ rule read =
   | "then" { THEN }
   | "else" { ELSE }
   | "let" { LET }
+  | "rec" { REC }
   | "in" { IN }
   | "fun" { FUN }
+  | ":" { COLON }
   | "->" { ARROW }
   | num { NUM (int_of_string (Lexing.lexeme lexbuf)) }
   | var { VAR (Lexing.lexeme lexbuf) }
