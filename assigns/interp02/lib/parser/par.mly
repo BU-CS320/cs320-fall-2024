@@ -55,7 +55,7 @@ toplet_list:
   | toplet_list toplet { $1 @ [$2] }
 
 toplet:
-  | LET VAR args COLON ty EQ expr IN { 
+  | LET VAR args COLON ty EQ expr IN {
       { is_rec = false; name = $2; args = $3; ty = $5; value = $6 }
     }
   | LET REC VAR args COLON ty EQ expr IN {
@@ -68,6 +68,12 @@ args:
 
 arg:
   | LPAREN VAR COLON ty RPAREN { ($2, $4) }
+
+ty:
+  | "int" { IntTy }
+  | "bool" { BoolTy }
+  | "unit" { UnitTy }
+  | ty ARROW ty { FunTy ($1, $3) }
 
 expr:
   | IF expr THEN expr ELSE expr { If ($2, $4, $6) }
