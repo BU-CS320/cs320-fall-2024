@@ -36,6 +36,8 @@ let rec mk_app e = function
 %token ARROW
 %token COLON
 %token EOF
+%token INT
+%token BOOL
 
 %right OR
 %right AND
@@ -70,9 +72,9 @@ arg:
   | LPAREN VAR COLON ty RPAREN { ($2, $4) }
 
 ty:
-  | "int" { IntTy }
-  | "bool" { BoolTy }
-  | "unit" { UnitTy }
+  | INT { IntTy }
+  | BOOL { BoolTy }
+  | UNIT { UnitTy }
   | ty ARROW ty { FunTy ($1, $3) }
 
 expr:
