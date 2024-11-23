@@ -37,10 +37,10 @@ arg:
   | LPAREN VAR COLON ty RPAREN { ($2, $4) }
 
 ty:
-  | INT { SIntTy }         (* Use SIntTy for surface-level type *)
-  | BOOL { SBoolTy }       (* Use SBoolTy for surface-level type *)
-  | UNIT { SUnitTy }
-  | ty ARROW ty { SFunTy ($1, $3) }
+  | INT { IntTy }           (* Core language type *)
+  | BOOL { BoolTy }
+  | UNIT { UnitTy }
+  | ty ARROW ty { FunTy ($1, $3) }
   | LPAREN ty RPAREN { $2 }
 
 expr:
@@ -64,16 +64,16 @@ expr3:
   | LPAREN expr RPAREN { $2 }
 
 bop:
-  | ADD { SAdd }
-  | SUB { SSub }
-  | MUL { SMul }
-  | DIV { SDiv }
-  | MOD { SMod }
-  | LT { SLt }
-  | LTE { SLte }
-  | GT { SGt }
-  | GTE { SGte }
-  | EQ { SEq }
-  | NEQ { SNeq }
-  | AND { SAnd }
-  | OR { SOr }
+  | ADD { Add }
+  | SUB { Sub }
+  | MUL { Mul }
+  | DIV { Div }
+  | MOD { Mod }
+  | LT { Lt }
+  | LTE { Lte }
+  | GT { Gt }
+  | GTE { Gte }
+  | EQ { Eq }
+  | NEQ { Neq }
+  | AND { And }
+  | OR { Or }
