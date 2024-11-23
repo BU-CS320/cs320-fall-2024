@@ -85,7 +85,7 @@ expr:
 
 expr2:
   | expr2 bop expr2 { SBop ($2, $1, $3) }
-  | expr3 expr3* { mk_app $1 $2 }
+  | expr3 expr3* { List.fold_left (fun acc e -> SApp (acc, e)) $1 $2 }
 
 expr3:
   | UNIT { SUnit }
