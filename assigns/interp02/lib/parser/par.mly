@@ -3,7 +3,7 @@ open Utils
 
 let rec mk_app e = function
   | [] -> e
-  | x :: es -> mk_app (App (e, x)) es
+  | x :: es -> mk_app (SApp (e, x)) es
 %}
 
 %token <int> NUM
@@ -78,21 +78,21 @@ ty:
   | ty ARROW ty { FunTy ($1, $3) }
 
 expr:
-  | IF expr THEN expr ELSE expr { If ($2, $4, $6) }
-  | LET VAR EQ expr IN expr { Let { is_rec = false; name = $2; ty = UnitTy; value = $4; body = $6 } }
-  | FUN VAR ARROW expr { Fun ($2, UnitTy, $4) }
+  | IF expr THEN expr ELSE expr { SIf ($2, $4, $6) }
+  | LET VAR EQ expr IN expr { SLet { is_rec = false; name = $2; args = []; ty = UnitTy; value = $4; body = $6 } }
+  | FUN VAR ARROW expr { SFun { arg = ($2, UnitTy); args = []; body = $4 } }
   | expr2 { $1 }
 
 expr2:
-  | expr2 bop expr2 { Bop ($2, $1, $3) }
+  | expr2 bop expr2 { SBop ($2, $1, $3) }
   | expr3 expr3* { mk_app $1 $2 }
 
 expr3:
-  | UNIT { Unit }
-  | TRUE { True }
-  | FALSE { False }
-  | NUM { Num $1 }
-  | VAR { Var $1 }
+  | UNIT { SUnit }
+  | TRUE { STrue }
+  | FALSE { SFalse }
+  | NUM { SNum $1 }
+  | VAR { SVar $1 }
   | LPAREN expr RPAREN { $2 }
 
 bop:
