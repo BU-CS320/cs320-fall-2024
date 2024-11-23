@@ -1,69 +1,71 @@
 include Utils  (* Assuming Utils defines VNum, VBool, VUnit, VFun, etc. *)
-
 open My_parser  (* Import My_parser to access parse *)
 
-let parse = parse 
-(* Helper function to convert a value to an expression *)
-let value_to_expr = function
-  | VNum n -> Num n
-  | VBool true -> True
-  | VBool false -> False
-  | VUnit -> Unit
-  | VFun (x, e) -> Fun (x, e)
+(* Parsing function *)
+let parse s =
+  try Some (Par.prog Lex.read (Lexing.from_string s))
+  with _ -> None
 
-(* Helper function to generate a fresh variable name *)
-let fresh_var x = x ^ "'"
+(* Desugaring function *)
+let rec desugar prog =
+  match prog with
+  | Let (x, e1, e2) -> Let (x, desugar e1, desugar e2)
+  | Fun (x, e) -> Fun (x, desugar e)
+  | App (e1, e2) -> App (desugar e1, desugar e2)
+  | If (e1, e2, e3) -> If (desugar e1, desugar e2, desugar e3)
+  | Bop (op, e1, e2) -> Bop (op, desugar e1, desugar e2)
+  | Var x -> Var x
+  | Num n -> Num n
+  | Unit -> Unit
+  | True -> True
+  | False -> False
 
-(* Collects free variables in an expression *)
-let rec free_vars expr =
+(* Type checking function *)
+let rec type_of ctx expr =
   match expr with
-  | Var x -> [x]
-  | Num _ | Unit | True | False -> []
-  | If (e1, e2, e3) -> free_vars e1 @ free_vars e2 @ free_vars e3
-  | Let (x, e1, e2) -> free_vars e1 @ List.filter (fun y -> y <> x) (free_vars e2)
-  | Fun (x, e_body) -> List.filter (fun y -> y <> x) (free_vars e_body)
-  | App (e1, e2) -> free_vars e1 @ free_vars e2
-  | Bop (_, e1, e2) -> free_vars e1 @ free_vars e2
-
-(* Renames all instances of old_name to new_name in an expression *)
-let rec rename old_name new_name expr =
-  match expr with
-  | Var x -> if x = old_name then Var new_name else Var x
-  | Num _ | Unit | True | False -> expr
-  | If (e1, e2, e3) -> If (rename old_name new_name e1, rename old_name new_name e2, rename old_name new_name e3)
-  | Let (x, e1, e2) ->
-      if x = old_name then Let (x, rename old_name new_name e1, e2)
-      else Let (x, rename old_name new_name e1, rename old_name new_name e2)
-  | Fun (x, e_body) ->
-      if x = old_name then Fun (x, e_body)
-      else Fun (x, rename old_name new_name e_body)
-  | App (e1, e2) -> App (rename old_name new_name e1, rename old_name new_name e2)
-  | Bop (op, e1, e2) -> Bop (op, rename old_name new_name e1, rename old_name new_name e2)
-
-(* Substitution function with capture avoidance *)
-let rec subst v x expr =
-  let v_expr = value_to_expr v in
-  match expr with
-  | Var y -> if y = x then v_expr else Var y
-  | Num _ | Unit | True | False -> expr
-  | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
-  | Let (y, e1, e2) ->
-      if y = x then Let (y, subst v x e1, e2)  (* Avoid substitution in e2 if y shadows x *)
-      else if List.mem y (free_vars v_expr) then
-        let y' = fresh_var y in  (* Rename y to avoid capture *)
-        Let (y', subst v x e1, subst v x (rename y y' e2))
-      else
-        Let (y, subst v x e1, subst v x e2)
-  | Fun (y, e_body) ->
-      if y = x then Fun (y, e_body)  (* Avoid substitution if variable is shadowed *)
-      else if List.mem y (free_vars v_expr) then
-        let y' = fresh_var y in  (* Rename y to avoid capture *)
-        Fun (y', subst v x (rename y y' e_body))
-      else
-        Fun (y, subst v x e_body)
-  | App (e1, e2) -> App (subst v x e1, subst v x e2)
-  | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
-
+  | Num _ -> Ok TInt
+  | True | False -> Ok TBool
+  | Unit -> Ok TUnit
+  | Var x -> (
+      match List.assoc_opt x ctx with
+      | Some t -> Ok t
+      | None -> Error (UnknownVar x)
+    )
+  | If (cond, e_then, e_else) -> (
+      match type_of ctx cond with
+      | Ok TBool -> (
+          match type_of ctx e_then, type_of ctx e_else with
+          | Ok t1, Ok t2 when t1 = t2 -> Ok t1
+          | Ok t1, Ok t2 -> Error (IfTyErr (t1, t2))
+          | _, Error e -> Error e
+        )
+      | Ok t -> Error (IfCondTyErr t)
+      | Error e -> Error e
+    )
+  | Fun (x, e_body) -> (
+      match List.assoc_opt x ctx with
+      | Some t -> type_of ((x, t) :: ctx) e_body
+      | None -> Error (UnknownVar x)
+    )
+  | App (e1, e2) -> (
+      match type_of ctx e1, type_of ctx e2 with
+      | Ok (TFun (t1, t2)), Ok t when t1 = t -> Ok t2
+      | Ok (TFun (t1, t2)), Ok t -> Error (FunArgTyErr (t1, t))
+      | Ok t, _ -> Error (FunAppTyErr t)
+      | Error e, _ -> Error e
+    )
+  | Bop (op, e1, e2) -> (
+      match type_of ctx e1, type_of ctx e2 with
+      | Ok TInt, Ok TInt -> Ok TInt
+      | Ok TInt, Ok t -> Error (OpTyErrR (op, TInt, t))
+      | Ok t, Ok TInt -> Error (OpTyErrL (op, TInt, t))
+      | _ -> Error (InvalidArgs op)
+    )
+  | Let (x, e1, e2) -> (
+      match type_of ctx e1 with
+      | Ok t -> type_of ((x, t) :: ctx) e2
+      | Error e -> Error e
+    )
 
 (* Evaluation function *)
 let rec eval expr =
@@ -96,7 +98,7 @@ let rec eval expr =
       | Ok _ -> Error InvalidApp
       | Error err -> Error err
     )
-  | Bop (op, e1, e2) ->
+  | Bop (op, e1, e2) -> (
       let apply_bop op v1 v2 =
         match op with
         | Add -> Ok (VNum (v1 + v2))
@@ -110,9 +112,9 @@ let rec eval expr =
         | Gte -> Ok (VBool (v1 >= v2))
         | Eq -> Ok (VBool (v1 = v2))
         | Neq -> Ok (VBool (v1 <> v2))
-        | _ -> Error (InvalidArgs op)
+        | And | Or -> Error (InvalidArgs op) (* Not used directly *)
       in
-      (match eval e1, eval e2 with
+      match eval e1, eval e2 with
       | Ok (VNum v1), Ok (VNum v2) -> apply_bop op v1 v2
       | Ok (VBool b1), Ok (VBool b2) -> (
           match op with
@@ -120,11 +122,16 @@ let rec eval expr =
           | Or -> Ok (VBool (b1 || b2))
           | _ -> Error (InvalidArgs op)
         )
-      | _ -> Error (InvalidArgs op))
-
+      | _ -> Error (InvalidArgs op)
+    )
 
 (* Interpreter function *)
 let interp s =
   match parse s with
-  | Some expr -> eval expr
+  | Some prog -> (
+      let expr = desugar prog in
+      match type_of [] expr with
+      | Ok _ -> eval expr
+      | Error e -> Error e
+    )
   | None -> Error ParseFail
