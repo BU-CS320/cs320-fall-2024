@@ -4,7 +4,7 @@ open Utils
 
 %token <int> NUM
 %token <string> VAR
-%token UNIT TRUE FALSE
+%token UNIT TRUE FALSE BOOL  (* 添加 BOOL *)
 %token LPAREN RPAREN
 %token ADD SUB MUL DIV MOD
 %token LT LTE GT GTE EQ NEQ
@@ -38,7 +38,7 @@ arg:
 
 ty:
   | INT { IntTy }
-  | BOOL { BoolTy }
+  | BOOL { BoolTy }  (* 使用 BOOL token *)
   | UNIT { UnitTy }
   | ty ARROW ty { FunTy ($1, $3) }
   | LPAREN ty RPAREN { $2 }
