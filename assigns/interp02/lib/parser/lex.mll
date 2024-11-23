@@ -35,6 +35,9 @@ rule read =
   | "fun" { FUN }
   | ":" { COLON }
   | "->" { ARROW }
+  | "int" { INT }
+  | "bool" { BOOL }
+  | "unit" { UNIT }
   | num { NUM (int_of_string (Lexing.lexeme lexbuf)) }
   | var { VAR (Lexing.lexeme lexbuf) }
   | whitespace { read lexbuf }
