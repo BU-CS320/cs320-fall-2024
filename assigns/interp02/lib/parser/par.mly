@@ -4,7 +4,7 @@ open Utils
 
 %token <int> NUM
 %token <string> VAR
-%token UNIT TRUE FALSE BOOL INT  (* 添加 BOOL 和 INT *)
+%token UNIT TRUE FALSE BOOL INT
 %token LPAREN RPAREN
 %token ADD SUB MUL DIV MOD
 %token LT LTE GT GTE EQ NEQ
@@ -14,23 +14,20 @@ open Utils
 %token COLON ARROW ASSERT
 %token EOF
 
-%start <prog> prog
-%type <expr> expr
-%type <expr> expr2
-%type <expr> expr3
+%start <sfexpr> prog  (* Change output type to sfexpr *)
 
 %%
 
 prog:
-  | toplets EOF { $1 }
+  | toplets EOF { SToplets $1 }  (* Wrap in a specific sfexpr constructor *)
 
 toplets:
   | /* empty */ { [] }
   | toplet toplets { $1 :: $2 }
 
 toplet:
-  | LET VAR args COLON ty EQ expr { { is_rec = false; name = $2; args = $3; ty = $5; value = $7 } }
-  | LET REC VAR args COLON ty EQ expr { { is_rec = true; name = $3; args = $4; ty = $6; value = $8 } }
+  | LET VAR args COLON ty EQ expr { SToplet { is_rec = false; name = $2; args = $3; ty = $5; value = $7 } }
+  | LET REC VAR args COLON ty EQ expr { SToplet { is_rec = true; name = $3; args = $4; ty = $6; value = $8 } }
 
 args:
   | /* empty */ { [] }
@@ -40,43 +37,43 @@ arg:
   | LPAREN VAR COLON ty RPAREN { ($2, $4) }
 
 ty:
-  | INT { IntTy }
-  | BOOL { BoolTy }
-  | UNIT { UnitTy }
-  | ty ARROW ty { FunTy ($1, $3) }
+  | INT { SIntTy }
+  | BOOL { SBoolTy }
+  | UNIT { SUnitTy }
+  | ty ARROW ty { SFunTy ($1, $3) }
   | LPAREN ty RPAREN { $2 }
 
 expr:
-  | LET VAR args COLON ty EQ expr IN expr { Let { is_rec = false; name = $2; ty = $5; value = $7; body = $9 } }
-  | LET REC VAR args COLON ty EQ expr IN expr { Let { is_rec = true; name = $3; ty = $6; value = $8; body = $10 } }
-  | IF expr THEN expr ELSE expr { If ($2, $4, $6) }
-  | FUN args ARROW expr { List.fold_right (fun (x, ty) acc -> Fun (x, ty, acc)) $2 $4 }
+  | LET VAR args COLON ty EQ expr IN expr { SLet { is_rec = false; name = $2; ty = $5; value = $7; body = $9 } }
+  | LET REC VAR args COLON ty EQ expr IN expr { SLet { is_rec = true; name = $3; ty = $6; value = $8; body = $10 } }
+  | IF expr THEN expr ELSE expr { SIf ($2, $4, $6) }
+  | FUN args ARROW expr { List.fold_right (fun (x, ty) acc -> SFun (x, ty, acc)) $2 $4 }
   | expr2 { $1 }
 
 expr2:
-  | expr2 bop expr2 { Bop ($2, $1, $3) }
-  | ASSERT expr3 { Assert $2 }
+  | expr2 bop expr2 { SBop ($2, $1, $3) }
+  | ASSERT expr3 { SAssert $2 }
   | expr3 { $1 }
 
 expr3:
-  | NUM { Num $1 }
-  | VAR { Var $1 }
-  | UNIT { Unit }
-  | TRUE { True }
-  | FALSE { False }
+  | NUM { SNum $1 }
+  | VAR { SVar $1 }
+  | UNIT { SUnit }
+  | TRUE { STrue }
+  | FALSE { SFalse }
   | LPAREN expr RPAREN { $2 }
 
 bop:
-  | ADD { Add }
-  | SUB { Sub }
-  | MUL { Mul }
-  | DIV { Div }
-  | MOD { Mod }
-  | LT { Lt }
-  | LTE { Lte }
-  | GT { Gt }
-  | GTE { Gte }
-  | EQ { Eq }
-  | NEQ { Neq }
-  | AND { And }
-  | OR { Or }
+  | ADD { SAdd }
+  | SUB { SSub }
+  | MUL { SMul }
+  | DIV { SDiv }
+  | MOD { SMod }
+  | LT { SLt }
+  | LTE { SLte }
+  | GT { SGt }
+  | GTE { SGte }
+  | EQ { SEq }
+  | NEQ { SNeq }
+  | AND { SAnd }
+  | OR { SOr }
