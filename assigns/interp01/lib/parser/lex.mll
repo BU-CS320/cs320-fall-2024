@@ -30,7 +30,6 @@ rule read =
   | "then" { THEN }
   | "else" { ELSE }
   | "let" { LET }
-  | "rec" { REC }               (* Added rule for the "rec" keyword *)
   | "in" { IN }
   | "fun" { FUN }
   | "->" { ARROW }
@@ -38,4 +37,3 @@ rule read =
   | var { VAR (Lexing.lexeme lexbuf) }
   | whitespace { read lexbuf }
   | eof { EOF }
-
