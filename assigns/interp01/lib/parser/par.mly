@@ -30,7 +30,6 @@ let rec mk_app e = function
 %token THEN
 %token ELSE
 %token LET
-%token REC
 %token IN
 %token FUN
 %token ARROW
@@ -43,44 +42,41 @@ let rec mk_app e = function
 %left ADD SUB
 %left MUL DIV MOD
 
-%start <Utils.expr> prog
+%start <Utils.prog> prog
 
 %%
 
 prog:
-  e = expr EOF { e }
+  | e = expr EOF { e }
 
 expr:
-  IF e1 = expr THEN e2 = expr ELSE e3 = expr { If (e1, e2, e3) }
-| LET REC x = VAR EQ e1 = expr IN e2 = expr { LetRec (x, e1, e2) }
-| LET x = VAR EQ e1 = expr IN e2 = expr { Let (x, e1, e2) }
-| FUN x = VAR ARROW e = expr { Fun (x, e) }
-| e = expr2 { e }
+  | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr { If (e1, e2, e3) }
+  | LET; x = VAR; EQ; e1 = expr; IN; e2 = expr { Let (x, e1, e2) }
+  | FUN; x = VAR; ARROW; e = expr { Fun (x, e) }
+  | e = expr2 { e }
 
 %inline bop:
-  ADD { Add }
-| SUB { Sub }
-| MUL { Mul }
-| DIV { Div }
-| MOD { Mod }
-| LT { Lt }
-| LTE { Lte }
-| GT { Gt }
-| GTE { Gte }
-| EQ { Eq }
-| NEQ { Neq }
-| AND { And }
-| OR { Or }
+  | ADD { Add }
+  | SUB { Sub }
+  | MUL { Mul }
+  | DIV { Div }
+  | MOD { Mod }
+  | LT { Lt }
+  | LTE { Lte }
+  | GT { Gt }
+  | GTE { Gte }
+  | EQ { Eq }
+  | NEQ { Neq }
+  | AND { And }
+  | OR { Or }
 
 expr2:
-  e1 = expr2 op = bop e2 = expr2 { Bop (op, e1, e2) }
-| e = expr3 es = expr3* { mk_app e es }
-
+  | e1 = expr2; op = bop; e2 = expr2 { Bop (op, e1, e2) }
+  | e = expr3; es = expr3* { mk_app e es }
 expr3:
-  UNIT { Unit }
-| TRUE { True }
-| FALSE { False }
-| n = NUM { Num n }
-| x = VAR { Var x }
-| LPAREN e = expr RPAREN { e }
-
+  | UNIT { Unit }
+  | TRUE { True }
+  | FALSE { False }
+  | n = NUM { Num n }
+  | x = VAR { Var x }
+  | LPAREN; e = expr; RPAREN { e }
