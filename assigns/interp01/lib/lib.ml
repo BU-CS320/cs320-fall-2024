@@ -3,7 +3,6 @@ include Utils  (* Assuming Utils defines VNum, VBool, VUnit, VFun, etc. *)
 open My_parser  (* Import My_parser to access parse *)
 
 let parse = parse 
-
 (* Helper function to convert a value to an expression *)
 let value_to_expr = function
   | VNum n -> Num n
@@ -11,6 +10,35 @@ let value_to_expr = function
   | VBool false -> False
   | VUnit -> Unit
   | VFun (x, e) -> Fun (x, e)
+
+(* Helper function to generate a fresh variable name *)
+let fresh_var x = x ^ "'"
+
+(* Collects free variables in an expression *)
+let rec free_vars expr =
+  match expr with
+  | Var x -> [x]
+  | Num _ | Unit | True | False -> []
+  | If (e1, e2, e3) -> free_vars e1 @ free_vars e2 @ free_vars e3
+  | Let (x, e1, e2) -> free_vars e1 @ List.filter (fun y -> y <> x) (free_vars e2)
+  | Fun (x, e_body) -> List.filter (fun y -> y <> x) (free_vars e_body)
+  | App (e1, e2) -> free_vars e1 @ free_vars e2
+  | Bop (_, e1, e2) -> free_vars e1 @ free_vars e2
+
+(* Renames all instances of old_name to new_name in an expression *)
+let rec rename old_name new_name expr =
+  match expr with
+  | Var x -> if x = old_name then Var new_name else Var x
+  | Num _ | Unit | True | False -> expr
+  | If (e1, e2, e3) -> If (rename old_name new_name e1, rename old_name new_name e2, rename old_name new_name e3)
+  | Let (x, e1, e2) ->
+      if x = old_name then Let (x, rename old_name new_name e1, e2)
+      else Let (x, rename old_name new_name e1, rename old_name new_name e2)
+  | Fun (x, e_body) ->
+      if x = old_name then Fun (x, e_body)
+      else Fun (x, rename old_name new_name e_body)
+  | App (e1, e2) -> App (rename old_name new_name e1, rename old_name new_name e2)
+  | Bop (op, e1, e2) -> Bop (op, rename old_name new_name e1, rename old_name new_name e2)
 
 (* Substitution function with capture avoidance *)
 let rec subst v x expr =
@@ -20,18 +48,24 @@ let rec subst v x expr =
   | Num _ | Unit | True | False -> expr
   | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
   | Let (y, e1, e2) ->
-      if y = x then Let (y, subst v x e1, e2)
-      else Let (y, subst v x e1, subst v x e2)
-  | LetRec (f, e1, e2) ->
-      if f = x then expr
-      else LetRec (f, subst v x e1, subst v x e2)
+      if y = x then Let (y, subst v x e1, e2)  (* Avoid substitution in e2 if y shadows x *)
+      else if List.mem y (free_vars v_expr) then
+        let y' = fresh_var y in  (* Rename y to avoid capture *)
+        Let (y', subst v x e1, subst v x (rename y y' e2))
+      else
+        Let (y, subst v x e1, subst v x e2)
   | Fun (y, e_body) ->
-      if y = x then Fun (y, e_body)
-      else Fun (y, subst v x e_body)
+      if y = x then Fun (y, e_body)  (* Avoid substitution if variable is shadowed *)
+      else if List.mem y (free_vars v_expr) then
+        let y' = fresh_var y in  (* Rename y to avoid capture *)
+        Fun (y', subst v x (rename y y' e_body))
+      else
+        Fun (y, subst v x e_body)
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
 
-(* Evaluation function with LetRec support *)
+
+(* Evaluation function *)
 let rec eval expr =
   match expr with
   | Num n -> Ok (VNum n)
@@ -62,16 +96,6 @@ let rec eval expr =
       | Ok _ -> Error InvalidApp
       | Error err -> Error err
     )
-
-  (* Case for LetRec expressions *)
-  | LetRec (f, Fun (arg, e_body), e2) ->
-      (* Define the recursive function as VFun *)
-      let rec_func = VFun (arg, Let (f, Var f, e_body)) in
-      eval (subst rec_func f e2)
-
-  (* Error case if LetRec is not used with a function *)
-  | LetRec (_, _, _) -> Error InvalidApp
-
   | Bop (op, e1, e2) ->
       let apply_bop op v1 v2 =
         match op with
@@ -97,6 +121,7 @@ let rec eval expr =
           | _ -> Error (InvalidArgs op)
         )
       | _ -> Error (InvalidArgs op))
+
 
 (* Interpreter function *)
 let interp s =
