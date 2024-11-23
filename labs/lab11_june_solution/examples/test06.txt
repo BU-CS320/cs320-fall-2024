@@ -1,0 +1,6 @@
+let rec mccarthy (x: int) : int =
+  if x <= 100 then
+    mccarthy (mccarthy (x + 11))
+  else x - 10
+in
+mccarthy 22

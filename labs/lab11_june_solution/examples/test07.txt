@@ -1,0 +1,5 @@
+let rec kfact (x : int) (k : int -> int) : int =
+  if x <= 0 then k 1
+  else kfact (x - 1) (fun res -> k (x * res))
+in
+kfact 10 (fun x -> x)
