@@ -30,10 +30,11 @@ let rec mk_app e = function
 %token THEN
 %token ELSE
 %token LET
+%token REC
 %token IN
 %token FUN
 %token ARROW
-
+%token COLON
 %token EOF
 
 %right OR
@@ -47,15 +48,46 @@ let rec mk_app e = function
 %%
 
 prog:
-  | e = expr EOF { e }
+  | toplet_list EOF { $1 }
+
+toplet_list:
+  | toplet { [$1] }
+  | toplet_list toplet { $1 @ [$2] }
+
+toplet:
+  | LET VAR args COLON ty EQ expr IN { 
+      { is_rec = false; name = $2; args = $3; ty = $5; value = $6 }
+    }
+  | LET REC VAR args COLON ty EQ expr IN {
+      { is_rec = true; name = $3; args = $4; ty = $6; value = $7 }
+    }
+
+args:
+  | /* empty */ { [] }
+  | arg args { $1 :: $2 }
+
+arg:
+  | LPAREN VAR COLON ty RPAREN { ($2, $4) }
 
 expr:
-  | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr { If (e1, e2, e3) }
-  | LET; x = VAR; EQ; e1 = expr; IN; e2 = expr { Let (x, e1, e2) }
-  | FUN; x = VAR; ARROW; e = expr { Fun (x, e) }
-  | e = expr2 { e }
+  | IF expr THEN expr ELSE expr { If ($2, $4, $6) }
+  | LET VAR EQ expr IN expr { Let { is_rec = false; name = $2; ty = UnitTy; value = $4; body = $6 } }
+  | FUN VAR ARROW expr { Fun ($2, UnitTy, $4) }
+  | expr2 { $1 }
 
-%inline bop:
+expr2:
+  | expr2 bop expr2 { Bop ($2, $1, $3) }
+  | expr3 expr3* { mk_app $1 $2 }
+
+expr3:
+  | UNIT { Unit }
+  | TRUE { True }
+  | FALSE { False }
+  | NUM { Num $1 }
+  | VAR { Var $1 }
+  | LPAREN expr RPAREN { $2 }
+
+bop:
   | ADD { Add }
   | SUB { Sub }
   | MUL { Mul }
@@ -69,14 +101,3 @@ expr:
   | NEQ { Neq }
   | AND { And }
   | OR { Or }
-
-expr2:
-  | e1 = expr2; op = bop; e2 = expr2 { Bop (op, e1, e2) }
-  | e = expr3; es = expr3* { mk_app e es }
-expr3:
-  | UNIT { Unit }
-  | TRUE { True }
-  | FALSE { False }
-  | n = NUM { Num n }
-  | x = VAR { Var x }
-  | LPAREN; e = expr; RPAREN { e }
