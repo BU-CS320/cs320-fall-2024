@@ -15,6 +15,9 @@ open Utils
 %token EOF
 
 %start <prog> prog
+%type <expr> expr
+%type <expr> expr2
+%type <expr> expr3
 
 %%
 
@@ -37,8 +40,8 @@ arg:
   | LPAREN VAR COLON ty RPAREN { ($2, $4) }
 
 ty:
-  | INT { IntTy }            (* 使用 INT token *)
-  | BOOL { BoolTy }          (* 使用 BOOL token *)
+  | INT { IntTy }
+  | BOOL { BoolTy }
   | UNIT { UnitTy }
   | ty ARROW ty { FunTy ($1, $3) }
   | LPAREN ty RPAREN { $2 }
