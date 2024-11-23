@@ -3,7 +3,7 @@ open Par
 }
 
 let whitespace = [' ' '\t' '\n' '\r']+
-let num = '-'? ['0'-'9']+
+let num = '-'? ['0'-'9']+  (* 定义整数的正则表达式 *)
 let var = ['a'-'z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_' '\'']*
 
 rule read =
@@ -14,6 +14,7 @@ rule read =
   | "true" { TRUE }
   | "false" { FALSE }
   | "bool" { BOOL }  (* 添加 BOOL 的定义 *)
+  | "int" { INT }    (* 添加 INT 的定义 *)
   | "(" { LPAREN }
   | ")" { RPAREN }
   | "+" { ADD }
@@ -41,3 +42,4 @@ rule read =
   | var { VAR (Lexing.lexeme lexbuf) }
   | whitespace { read lexbuf }
   | eof { EOF }
+
