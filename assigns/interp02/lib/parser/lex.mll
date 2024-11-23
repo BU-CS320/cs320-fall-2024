@@ -13,6 +13,7 @@ rule read =
   | "()" { UNIT }
   | "true" { TRUE }
   | "false" { FALSE }
+  | "bool" { BOOL }  (* 添加 BOOL 的定义 *)
   | "(" { LPAREN }
   | ")" { RPAREN }
   | "+" { ADD }
