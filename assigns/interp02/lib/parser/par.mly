@@ -27,12 +27,12 @@ toplets:
 
 toplet:
   | LET VAR args COLON ty EQ expr {
-      SToplet { is_rec = false; name = $2; args = $3; ty = $5; value = $7 }
+      Utils.SToplet { is_rec = false; name = $2; args = $3; ty = $5; value = $7 }
     }
   | LET REC VAR args COLON ty EQ expr {
-      SToplet { is_rec = true; name = $3; args = $4; ty = $6; value = $8 }
+      Utils.SToplet { is_rec = true; name = $3; args = $4; ty = $6; value = $8 }
     }
-
+    
 args:
   | /* empty */ { [] }
   | arg args { $1 :: $2 }
