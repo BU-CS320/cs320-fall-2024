@@ -80,3 +80,4 @@ let err_msg = function
   | InvalidApp -> "non-function value used in function application"
   | UnknownVar x -> "unknown variable '" ^ x ^ "'"
   | ParseFail -> "syntax error"
+
