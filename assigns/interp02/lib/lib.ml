@@ -13,10 +13,10 @@ let rec desugar (prog: sfexpr): expr =
   | SToplets toplets -> desugar_toplets toplets
   | _ -> failwith "Invalid program structure"
 
-and desugar_toplets (toplets: sftoplet list): expr =
+and desugar_toplets (toplets: Utils.sftoplet list): expr =
   match toplets with
   | [] -> Unit
-  | SToplet { is_rec; name; args; ty; value } :: rest ->
+  | Utils.SToplet { is_rec; name; args; ty; value } :: rest ->
     let func_expr = List.fold_right (fun (arg, ty) acc -> Fun (arg, ty, acc)) args (desugar value) in
     let desugared_rest = desugar_toplets rest in
     if is_rec then
