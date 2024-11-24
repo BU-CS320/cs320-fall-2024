@@ -14,23 +14,23 @@ open Utils
 %token COLON ARROW ASSERT
 %token EOF
 
-%start <sftoplet list> prog  (* Output type changed to sftoplet list *)
+%start <Utils.sftoplet list> prog  (* Use Utils.sftoplet list *)
 
 %%
 
 prog:
-  | toplets EOF { $1 }  (* Returns the list of top-level let expressions *)
+  | toplets EOF { $1 }
 
 toplets:
   | /* empty */ { [] }
   | toplet toplets { $1 :: $2 }
 
 toplet:
-  | LET VAR args COLON ty EQ expr { 
-      SToplet { is_rec = false; name = $2; args = $3; ty = $5; value = $7 } 
+  | LET VAR args COLON ty EQ expr {
+      Utils.SToplet { is_rec = false; name = $2; args = $3; ty = $5; value = $7 }
     }
-  | LET REC VAR args COLON ty EQ expr { 
-      SToplet { is_rec = true; name = $3; args = $4; ty = $6; value = $8 } 
+  | LET REC VAR args COLON ty EQ expr {
+      Utils.SToplet { is_rec = true; name = $3; args = $4; ty = $6; value = $8 }
     }
 
 args:
@@ -41,22 +41,22 @@ arg:
   | LPAREN VAR COLON ty RPAREN { ($2, $4) }
 
 ty:
-  | INT { IntTy }           (* Core language type *)
+  | INT { IntTy }
   | BOOL { BoolTy }
   | UNIT { UnitTy }
   | ty ARROW ty { FunTy ($1, $3) }
   | LPAREN ty RPAREN { $2 }
 
 expr:
-  | LET VAR args COLON ty EQ expr IN expr { 
-      SLet { is_rec = false; name = $2; ty = $5; value = $7; body = $9 } 
+  | LET VAR args COLON ty EQ expr IN expr {
+      SLet { is_rec = false; name = $2; ty = $5; value = $7; body = $9 }
     }
-  | LET REC VAR args COLON ty EQ expr IN expr { 
-      SLet { is_rec = true; name = $3; ty = $6; value = $8; body = $10 } 
+  | LET REC VAR args COLON ty EQ expr IN expr {
+      SLet { is_rec = true; name = $3; ty = $6; value = $8; body = $10 }
     }
   | IF expr THEN expr ELSE expr { SIf ($2, $4, $6) }
-  | FUN args ARROW expr { 
-      List.fold_right (fun (x, ty) acc -> SFun (x, ty, acc)) $2 $4 
+  | FUN args ARROW expr {
+      List.fold_right (fun (x, ty) acc -> SFun (x, ty, acc)) $2 $4
     }
   | expr2 { $1 }
 
