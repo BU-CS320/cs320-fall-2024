@@ -14,7 +14,7 @@ open Utils
 %token COLON ARROW ASSERT
 %token EOF
 
-%start <Utils.sftoplet list> prog
+%start <sftoplet list> prog
 
 %%
 
