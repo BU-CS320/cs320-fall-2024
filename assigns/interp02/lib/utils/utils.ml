@@ -16,7 +16,7 @@ type sfexpr =
   | SAssert of sfexpr
   | SToplets of sftoplet list
 
-and sftoplet =
+type sftoplet =
   | SToplet of { is_rec: bool; name: string; args: (string * ty) list; ty: ty; value: sfexpr }
 
 (* Core language expressions (used after desugaring) *)
