@@ -8,12 +8,17 @@ let parse s =
   with _ -> None
 
 (* Desugaring function *)
-let rec desugar (prog: prog): expr =
+let rec desugar (prog: sfexpr): expr =
   match prog with
+  | SToplets toplets -> desugar_toplets toplets
+  | _ -> failwith "Invalid program structure"
+
+and desugar_toplets (toplets: sftoplet list): expr =
+  match toplets with
   | [] -> Unit
-  | { is_rec; name; args; ty; value } :: rest ->
-    let func_expr = List.fold_right (fun (arg, ty) acc -> Fun (arg, ty, acc)) args value in
-    let desugared_rest = desugar rest in
+  | SToplet { is_rec; name; args; ty; value } :: rest ->
+    let func_expr = List.fold_right (fun (arg, ty) acc -> Fun (arg, ty, acc)) args (desugar value) in
+    let desugared_rest = desugar_toplets rest in
     if is_rec then
       Let { is_rec = true; name; ty; value = func_expr; body = desugared_rest }
     else
@@ -67,7 +72,6 @@ let rec type_of ctx expr =
       | Error e -> Error e
     )
   | Bop (op, e1, e2) ->
-      (* Check binary operator type *)
       let check_bop t1 t2 expected_ty =
         match t1, t2 with
         | Ok t1', Ok t2' when t1' = expected_ty && t2' = expected_ty -> Ok expected_ty
@@ -100,22 +104,16 @@ let rec eval env expr =
       | VBool false -> eval env e_else
       | _ -> raise InvalidIfCond
     )
-  | Fun (x, _, e_body) -> VClos (env, x, e_body)
+  | Fun (x, _, e_body) -> VFun (x, e_body)
   | App (e1, e2) -> (
       match eval env e1 with
-      | VClos (env', x, e_body) ->
+      | VFun (x, e_body) ->
           let v_arg = eval env e2 in
-          eval ((x, v_arg) :: env') e_body
+          eval ((x, v_arg) :: env) e_body
       | _ -> raise InvalidApp
     )
   | Let { is_rec; name; value; body } ->
-      let v = if is_rec then
-        let rec_env = (name, ref VUnit) :: env in
-        let v = eval rec_env value in
-        (match List.assoc_opt name rec_env with
-        | Some r -> r := v; v
-        | None -> failwith "Unexpected missing recursive binding")
-      else eval env value in
+      let v = eval env value in
       eval ((name, v) :: env) body
   | Assert e -> (
       match eval env e with
@@ -129,9 +127,9 @@ let rec eval env expr =
 let interp s =
   match parse s with
   | None -> Error ParseFail
-  | Some prog -> (
+  | Some sfexpr -> (
       try
-        let expr = desugar prog in
+        let expr = desugar sfexpr in
         match type_of [] expr with
         | Ok _ -> Ok (eval [] expr)
         | Error e -> Error e
