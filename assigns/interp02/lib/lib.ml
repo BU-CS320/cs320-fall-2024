@@ -1,19 +1,19 @@
-open Utils
 open My_parser
+open Utils
 
 let parse = parse
 
-(* ========== Helper Functions ========== *)
-
-let list_hd = function
- | [] -> failwith "empty list"
- | h :: _ -> h
+(* ========== 辅助函数 ========== *)
 
 let list_tl = function
- | [] -> failwith "empty list"
+ | [] -> failwith "空列表"
  | _ :: t -> t
 
-(* ========== Desugaring ========== *)
+let list_hd = function
+ | [] -> failwith "空列表"
+ | h :: _ -> h
+
+(* ========== 去糖化 ========== *)
 
 let rec desugar_expr (e : sfexpr) : expr =
  match e with
@@ -71,14 +71,14 @@ let desugar (prog : prog) : expr =
  in
  nest_lets prog
 
-(* ========== Type Checking ========== *)
+(* ========== 类型检查 ========== *)
 
 type context = (string * ty) list
 
 let lookup ctx x =
  try Ok (List.assoc x ctx) with Not_found -> Error (UnknownVar x)
 
-(* Define type_of_expr first *)
+(* 定义 type_of_expr 函数 *)
 let rec type_of_expr (ctx : context) (e : expr) : (ty, error) result =
   match e with
   | Unit -> Ok UnitTy
@@ -149,96 +149,97 @@ let rec type_of_expr (ctx : context) (e : expr) : (ty, error) result =
       | Ok t -> Error (AssertTyErr t)
       | Error e -> Error e)
 
-(* Define type_of after type_of_expr *)
+(* 定义 type_of 函数 *)
 let type_of (e : expr) : (ty, error) result =
   type_of_expr [] e
 
 
-(* ========== Exceptions ========== *)
+(* ========== 异常 ========== *)
 exception AssertFail
 exception DivByZero
 
 
-(* ========== Eval ========== *)
+(* ========== 计算 ========== *)
 (*let eval (_ : expr) : value =
   VUnit*)
-  let eval expr =
-    let rec eval env expr =
-      match expr with
-      | Num n -> VNum n
-      | True -> VBool true
-      | False -> VBool false
-      | Unit -> VUnit
-      | Var x -> Env.find x env
-      | If (e1, e2, e3) ->
-          (match eval env e1 with
-           | VBool true -> eval env e2
-           | VBool false -> eval env e3
-           | _ -> failwith "Conditional Error")
-      | Fun (x, _, body) -> 
-          VClos { name = None; arg = x; body; env }
-      | Bop (op, e1, e2) -> 
-          (match op with
-           | And -> eval_and env e1 e2
-           | Or -> eval_or env e1 e2
-           | _ -> eval_bop op env e1 e2)
-      | Let { is_rec; name = n; ty = _ty; value = e1; body = e2 } ->
-          let value_v = match is_rec, e1 with
-            | true, Fun (x, _, e) -> 
-                VClos { name = Some n; arg = x; body = e; env = env }
-            | false, _ -> eval env e1
-            | _ -> failwith "recursive binding must be function"
-          in
-          eval (Env.add n value_v env) e2
-      | App (e1, e2) ->
-          let v1 = eval env e1 in
-          let v2 = eval env e2 in
-          (match v1 with
-           | VClos { name; arg; body; env = cenv } ->
-               let new_env = match name with
-                 | None -> Env.add arg v2 cenv
-                 | Some f -> Env.add arg v2 (Env.add f v1 cenv)
-               in eval new_env body
-           | _ -> failwith "Attempted to apply a non-function value")
-      | Assert e ->
-          (match eval env e with
-           | VBool true -> VUnit
-           | VBool false -> raise AssertFail
-           | _ -> failwith "Assertion must be a boolean")
-  
-    and eval_and env e1 e2 =
-      match eval env e1 with
-      | VBool false -> VBool false
-      | VBool true -> eval env e2
-      | _ -> failwith "and requires booleans"
-  
-    and eval_or env e1 e2 =
-      match eval env e1 with
-      | VBool true -> VBool true
-      | VBool false -> eval env e2
-      | _ -> failwith "or requires booleans"
-  
-    and eval_bop op env e1 e2 =
-      let v1 = eval env e1 in
-      let v2 = eval env e2 in
-      match op, v1, v2 with
-      | Add, VNum n1, VNum n2 -> VNum (n1 + n2)
-      | Sub, VNum n1, VNum n2 -> VNum (n1 - n2)
-      | Mul, VNum n1, VNum n2 -> VNum (n1 * n2)
-      | Div, VNum n1, VNum n2 when n2 <> 0 -> VNum (n1 / n2)
-      | Div, _, VNum 0 -> raise DivByZero
-      | Mod, VNum n1, VNum n2 when n2 <> 0 -> VNum (n1 mod n2)
-      | Mod, _, VNum 0 -> raise DivByZero
-      | Lt, VNum n1, VNum n2 -> VBool (n1 < n2)
-      | Lte, VNum n1, VNum n2 -> VBool (n1 <= n2)
-      | Gt, VNum n1, VNum n2 -> VBool (n1 > n2)
-      | Gte, VNum n1, VNum n2 -> VBool (n1 >= n2)
-      | Eq, VNum n1, VNum n2 -> VBool (n1 = n2)
-      | Neq, VNum n1, VNum n2 -> VBool (n1 <> n2)
-      | _, _, _ -> failwith "Invalid operands for binary operation"
-  
-    in eval Env.empty expr
-(* ========== Interpreter ========== *)
+let eval expr =
+  let rec eval env expr =
+    match expr with
+    | Num n -> VNum n
+    | True -> VBool true
+    | False -> VBool false
+    | Unit -> VUnit
+    | Var x -> Env.find x env
+    | If (e1, e2, e3) ->
+        (match eval env e1 with
+         | VBool true -> eval env e2
+         | VBool false -> eval env e3
+         | _ -> failwith "条件错误")
+    | Fun (x, _, body) -> 
+        VClos { name = None; arg = x; body; env }
+    | Bop (op, e1, e2) -> 
+        (match op with
+         | And -> eval_and env e1 e2
+         | Or -> eval_or env e1 e2
+         | _ -> eval_bop op env e1 e2)
+    | Let { is_rec; name = n; ty = _ty; value = e1; body = e2 } ->
+        let value_v = match is_rec, e1 with
+          | true, Fun (x, _, e) -> 
+              VClos { name = Some n; arg = x; body = e; env = env }
+          | false, _ -> eval env e1
+          | _ -> failwith "递归绑定必须是函数"
+        in
+        eval (Env.add n value_v env) e2
+    | App (e1, e2) ->
+        let v1 = eval env e1 in
+        let v2 = eval env e2 in
+        (match v1 with
+         | VClos { name; arg; body; env = cenv } ->
+             let new_env = match name with
+               | None -> Env.add arg v2 cenv
+               | Some f -> Env.add arg v2 (Env.add f v1 cenv)
+             in eval new_env body
+         | _ -> failwith "试图应用一个非函数值")
+    | Assert e ->
+        (match eval env e with
+         | VBool true -> VUnit
+         | VBool false -> raise AssertFail
+         | _ -> failwith "断言必须是布尔类型")
+
+  and eval_and env e1 e2 =
+    match eval env e1 with
+    | VBool false -> VBool false
+    | VBool true -> eval env e2
+    | _ -> failwith "and 操作需要布尔类型"
+
+  and eval_or env e1 e2 =
+    match eval env e1 with
+    | VBool true -> VBool true
+    | VBool false -> eval env e2
+    | _ -> failwith "or 操作需要布尔类型"
+
+  and eval_bop op env e1 e2 =
+    let v1 = eval env e1 in
+    let v2 = eval env e2 in
+    match op, v1, v2 with
+    | Add, VNum n1, VNum n2 -> VNum (n1 + n2)
+    | Sub, VNum n1, VNum n2 -> VNum (n1 - n2)
+    | Mul, VNum n1, VNum n2 -> VNum (n1 * n2)
+    | Div, VNum n1, VNum n2 when n2 <> 0 -> VNum (n1 / n2)
+    | Div, _, VNum 0 -> raise DivByZero
+    | Mod, VNum n1, VNum n2 when n2 <> 0 -> VNum (n1 mod n2)
+    | Mod, _, VNum 0 -> raise DivByZero
+    | Lt, VNum n1, VNum n2 -> VBool (n1 < n2)
+    | Lte, VNum n1, VNum n2 -> VBool (n1 <= n2)
+    | Gt, VNum n1, VNum n2 -> VBool (n1 > n2)
+    | Gte, VNum n1, VNum n2 -> VBool (n1 >= n2)
+    | Eq, VNum n1, VNum n2 -> VBool (n1 = n2)
+    | Neq, VNum n1, VNum n2 -> VBool (n1 <> n2)
+    | _, _, _ -> failwith "二元操作的操作数无效"
+
+  in eval Env.empty expr
+
+(* ========== 解释器 ========== *)
 
 let interp s =
   match parse s with
@@ -252,3 +253,4 @@ let interp s =
           with
           | DivByZero -> Error (OpTyErrR (Div, IntTy, IntTy))
           | AssertFail -> Error (AssertTyErr BoolTy)
+
