@@ -1,82 +1,82 @@
 %{
 open Utils
-
-let rec mk_app e = function
-  | [] -> e
-  | x :: es -> mk_app (App (e, x)) es
+let make_toplet ~is_rec name args ty value = 
+  { is_rec; name; args; ty; value }
 %}
-
 %token <int> NUM
 %token <string> VAR
-%token UNIT
-%token TRUE
-%token FALSE
-%token LPAREN
-%token RPAREN
-%token ADD
-%token SUB
-%token MUL
-%token DIV
-%token MOD
-%token LT
-%token LTE
-%token GT
-%token GTE
-%token EQ
-%token NEQ
-%token AND
-%token OR
-%token IF
-%token THEN
-%token ELSE
-%token LET
-%token IN
-%token FUN
-%token ARROW
-
+%token LET REC IN
+%token IF THEN ELSE
+%token FUN ARROW
+%token ASSERT
+%token TRUE FALSE
+%token INT BOOL UNIT UNIT_VAL
+%token LPAREN RPAREN
+%token COLON EQUALS
+%token PLUS MINUS TIMES DIV MOD
+%token LT LTE GT GTE EQ NEQ
+%token AND OR
 %token EOF
 
+
+%right ARROW
 %right OR
 %right AND
-%left LT LTE GT GTE EQ NEQ
-%left ADD SUB
-%left MUL DIV MOD
+%left EQ NEQ LT GT LTE GTE
+%left PLUS MINUS
+%left TIMES DIV MOD
+%nonassoc APP
+
 
 %start <Utils.prog> prog
-
 %%
 
 prog:
-  | e = expr EOF { e }
-
+  | ts = list(toplet) EOF { ts }
+toplet:
+  | LET x = VAR args = list(arg) COLON t = ty EQUALS e = expr
+    { make_toplet ~is_rec:false x args t e }
+  | LET REC x = VAR arg = arg args = list(arg) COLON t = ty EQUALS e = expr
+    { make_toplet ~is_rec:true x (arg :: args) t e }
+arg:
+  | LPAREN x = VAR COLON t = ty RPAREN { (x, t) }
+ty:
+  | INT { IntTy }
+  | BOOL { BoolTy }
+  | UNIT { UnitTy }
+  | t1 = ty ARROW t2 = ty { FunTy(t1, t2) }
+  | LPAREN t = ty RPAREN { t }
 expr:
-  | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr { If (e1, e2, e3) }
-  | LET; x = VAR; EQ; e1 = expr; IN; e2 = expr { Let (x, e1, e2) }
-  | FUN; x = VAR; ARROW; e = expr { Fun (x, e) }
-  | e = expr2 { e }
-
-%inline bop:
-  | ADD { Add }
-  | SUB { Sub }
-  | MUL { Mul }
-  | DIV { Div }
-  | MOD { Mod }
-  | LT { Lt }
-  | LTE { Lte }
-  | GT { Gt }
-  | GTE { Gte }
-  | EQ { Eq }
-  | NEQ { Neq }
-  | AND { And }
-  | OR { Or }
-
-expr2:
-  | e1 = expr2; op = bop; e2 = expr2 { Bop (op, e1, e2) }
-  | e = expr3; es = expr3* { mk_app e es }
-expr3:
-  | UNIT { Unit }
-  | TRUE { True }
-  | FALSE { False }
-  | n = NUM { Num n }
-  | x = VAR { Var x }
-  | LPAREN; e = expr; RPAREN { e }
+  | e = simple_expr { e }
+  | FUN args = nonempty_list(arg) ARROW body = expr
+    { List.fold_right (fun (x,t) acc -> SFun{arg=(x,t); args=[]; body=acc}) args body }
+  | LET x = VAR args = list(arg) COLON t = ty EQUALS e1 = expr IN e2 = expr
+    { SLet{is_rec=false; name=x; args; ty=t; value=e1; body=e2} }
+  | LET REC x = VAR arg = arg args = list(arg) COLON t = ty EQUALS e1 = expr IN e2 = expr
+    { SLet{is_rec=true; name=x; args=(arg::args); ty=t; value=e1; body=e2} }
+  | IF e1 = expr THEN e2 = expr ELSE e3 = expr
+    { SIf(e1, e2, e3) }
+  | e1 = expr op = binop e2 = expr
+    { SBop(op, e1, e2) }
+  | ASSERT LPAREN e = expr RPAREN
+    { SAssert(e) }
+  | e1 = expr e2 = simple_expr %prec APP
+    { SApp(e1, e2) }
+simple_expr:
+  | UNIT_VAL { SUnit }
+  | TRUE { STrue }
+  | FALSE { SFalse }
+  | n = NUM { SNum n }
+  | x = VAR { SVar x }
+  | LPAREN e = expr RPAREN { e }
+%inline binop:
+  | PLUS { Add }
+  | MINUS { Sub }
+  | TIMES { Mul }
+  | DIV { Div }
+  | MOD { Mod }
+  | LT { Lt }
+  | LTE { Lte }
+  | GT { Gt }
+  | GTE { Gte }
+  | EQ 
