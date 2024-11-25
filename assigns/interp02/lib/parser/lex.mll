@@ -3,18 +3,14 @@ open Par
 }
 
 let whitespace = [' ' '\t' '\n' '\r']+
-let num = '-'? ['0'-'9']+  (* Integer regex *)
+let num = '-'? ['0'-'9']+
 let var = ['a'-'z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_' '\'']*
 
 rule read =
   parse
-  | ":" { COLON }
-  | "->" { ARROW }
   | "()" { UNIT }
   | "true" { TRUE }
   | "false" { FALSE }
-  | "bool" { BOOL }  (* BOOL token *)
-  | "int" { INT }    (* INT token *)
   | "(" { LPAREN }
   | ")" { RPAREN }
   | "+" { ADD }
@@ -34,10 +30,9 @@ rule read =
   | "then" { THEN }
   | "else" { ELSE }
   | "let" { LET }
-  | "rec" { REC }
   | "in" { IN }
   | "fun" { FUN }
-  | "assert" { ASSERT }
+  | "->" { ARROW }
   | num { NUM (int_of_string (Lexing.lexeme lexbuf)) }
   | var { VAR (Lexing.lexeme lexbuf) }
   | whitespace { read lexbuf }
