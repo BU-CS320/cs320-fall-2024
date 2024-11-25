@@ -1,89 +1,180 @@
-(* lib.ml *)
+open Utils
+open My_parser
 
-include Utils  (* Re-export everything from Utils to make it accessible *)
-
-open My_parser  (* Ensure this imports the parse function correctly *)
-
-(* Re-export the parse function to make it accessible as Lib.parse *)
 let parse = parse
 
-(* Helper function to convert a value to an expression *)
-let value_to_expr = function
-  | VNum n -> Num n
-  | VBool true -> True
-  | VBool false -> False
-  | VUnit -> Unit
-  | VFun (x, e) -> Fun (x, e)
+(* ========== Helper Functions ========== *)
 
-(* Substitutes `v` (of type value) for variable `x` in expression `e` *)
-let rec subst v x e =
-  let v_expr = value_to_expr v in
+let list_hd = function
+ | [] -> failwith "empty list"
+ | h :: _ -> h
+
+let list_tl = function
+ | [] -> failwith "empty list"
+ | _ :: t -> t
+
+(* ========== Desugaring ========== *)
+
+let rec desugar_expr (e : sfexpr) : expr =
+ match e with
+ | SUnit -> Unit
+ | STrue -> True
+ | SFalse -> False
+ | SNum n -> Num n
+ | SVar x -> Var x
+ | SBop (op, e1, e2) -> Bop (op, desugar_expr e1, desugar_expr e2)
+ | SIf (e1, e2, e3) -> If (desugar_expr e1, desugar_expr e2, desugar_expr e3)
+ | SAssert e -> Assert (desugar_expr e)
+ | SFun { arg = (x, t); args = []; body } -> Fun (x, t, desugar_expr body)
+ | SFun { arg = (x, t); args = y :: ys; body } ->
+     Fun (x, t, desugar_expr (SFun { arg = y; args = ys; body }))
+ | SLet { is_rec; name; args = []; ty; value; body } ->
+     Let
+       {
+         is_rec;
+         name;
+         ty;
+         value = desugar_expr value;
+         body = desugar_expr body;
+       }
+ | SLet { is_rec; name; args = arg :: args; ty; value; body } ->
+     let fun_ty = List.fold_right (fun (_, t) acc -> FunTy (t, acc)) args ty in
+     Let
+       {
+         is_rec;
+         name;
+         ty = FunTy (snd arg, fun_ty);
+         value = desugar_expr (SFun { arg; args; body = value });
+         body = desugar_expr body;
+       }
+ | SApp (e1, e2) -> App (desugar_expr e1, desugar_expr e2)
+
+let desugar (prog : prog) : expr =
+ let rec nest_lets = function
+   | [] -> Unit
+   | { is_rec; name; args; ty; value } :: rest ->
+       let value' =
+         if args = [] then value
+         else SFun { arg = list_hd args; args = list_tl args; body = value }
+       in
+       let fun_ty =
+         List.fold_right (fun (_, t) acc -> FunTy (t, acc)) args ty
+       in
+       Let
+         {
+           is_rec;
+           name;
+           ty = if args = [] then ty else fun_ty;
+           value = desugar_expr value';
+           body = nest_lets rest;
+         }
+ in
+ nest_lets prog
+
+(* ========== Type Checking ========== *)
+
+
+
+type context = (string * ty) list
+
+let lookup ctx x =
+ try Ok (List.assoc x ctx) with Not_found -> Error (UnknownVar x)
+
+(* Define type_of_expr first *)
+let rec type_of_expr (ctx : context) (e : expr) : (ty, error) result =
   match e with
-  | Var y -> if y = x then v_expr else e
-  | Num _ | Unit | True | False -> e
-  | If (e1, e2, e3) -> If (subst v x e1, subst v x e2, subst v x e3)
-  | Let (y, e1, e2) ->
-      if y = x then Let (y, subst v x e1, e2)
-      else Let (y, subst v x e1, subst v x e2)
-  | Fun (y, e1) ->
-      if y = x then e
-      else Fun (y, subst v x e1)
-  | App (e1, e2) -> App (subst v x e1, subst v x e2)
-  | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
+  | Unit -> Ok UnitTy
+  | True | False -> Ok BoolTy
+  | Num _ -> Ok IntTy
+  | Var x -> lookup ctx x
+  | Fun (x, t1, e) ->
+      let ctx' = (x, t1) :: ctx in
+      (match type_of_expr ctx' e with
+       | Ok t2 -> Ok (FunTy (t1, t2))
+       | Error e -> Error e)
+  | App (e1, e2) -> (
+      match type_of_expr ctx e1 with
+      | Error e -> Error e
+      | Ok (FunTy (t1, t2)) -> (
+          match type_of_expr ctx e2 with
+          | Error e -> Error e
+          | Ok t2' when t1 = t2' -> Ok t2
+          | Ok t2' -> Error (FunArgTyErr (t1, t2')))
+      | Ok t -> Error (FunAppTyErr t))
+  | Let { is_rec; name; ty; value; body } ->
+      let ctx' = if is_rec then (name, ty) :: ctx else ctx in
+      (match type_of_expr ctx' value with
+       | Error e -> Error e
+       | Ok vty when vty = ty -> type_of_expr ((name, ty) :: ctx) body
+       | Ok vty -> Error (LetTyErr (ty, vty)))
+  | If (e1, e2, e3) -> (
+      match type_of_expr ctx e1 with
+      | Error e -> Error e
+      | Ok BoolTy -> (
+          match type_of_expr ctx e2 with
+          | Error e -> Error e
+          | Ok t2 -> (
+              match type_of_expr ctx e3 with
+              | Error e -> Error e
+              | Ok t3 when t2 = t3 -> Ok t2
+              | Ok t3 -> Error (IfTyErr (t2, t3))))
+      | Ok t -> Error (IfCondTyErr t))
+  | Bop (op, e1, e2) -> (
+      match op with
+      | Add | Sub | Mul | Div | Mod -> (
+          match (type_of_expr ctx e1, type_of_expr ctx e2) with
+          | Ok IntTy, Ok IntTy -> Ok IntTy
+          | Ok IntTy, Ok t2 when t2 <> IntTy -> Error (OpTyErrR (op, IntTy, t2))
+          | Ok t1, _ when t1 <> IntTy -> Error (OpTyErrL (op, IntTy, t1))
+          | Error e, _ -> Error e
+          | _, Error e -> Error e
+          | _, _ -> Error (OpTyErrL (op, IntTy, UnitTy)))
+      | And | Or -> (
+          match (type_of_expr ctx e1, type_of_expr ctx e2) with
+          | Ok BoolTy, Ok BoolTy -> Ok BoolTy
+          | Ok BoolTy, Ok t2 when t2 <> BoolTy -> Error (OpTyErrR (op, BoolTy, t2))
+          | Ok t1, _ when t1 <> BoolTy -> Error (OpTyErrL (op, BoolTy, t1))
+          | Error e, _ -> Error e
+          | _, Error e -> Error e
+          | _, _ -> Error (OpTyErrL (op, BoolTy, UnitTy)))
+      | Lt | Lte | Gt | Gte | Eq | Neq -> (
+          match (type_of_expr ctx e1, type_of_expr ctx e2) with
+          | Ok IntTy, Ok IntTy -> Ok BoolTy
+          | Ok IntTy, Ok t2 when t2 <> IntTy -> Error (OpTyErrR (op, IntTy, t2))
+          | Ok t1, _ when t1 <> IntTy -> Error (OpTyErrL (op, IntTy, t1))
+          | Error e, _ -> Error e
+          | _, Error e -> Error e
+          | _, _ -> Error (OpTyErrL (op, IntTy, UnitTy))))
+  | Assert e -> (
+      match type_of_expr ctx e with
+      | Ok BoolTy -> Ok UnitTy
+      | Ok t -> Error (AssertTyErr t)
+      | Error e -> Error e)
 
-(* Evaluates expressions and returns a result or an error *)
-let rec eval e =
-  match e with
-  | Num n -> Ok (VNum n)
-  | True -> Ok (VBool true)
-  | False -> Ok (VBool false)
-  | Unit -> Ok VUnit
-  | Var x -> Error (UnknownVar x)
-  | If (e1, e2, e3) ->
-      (match eval e1 with
-      | Ok (VBool true) -> eval e2
-      | Ok (VBool false) -> eval e3
-      | Ok _ -> Error InvalidIfCond
-      | Error err -> Error err)
-  | Let (x, e1, e2) ->
-      (match eval e1 with
-      | Ok v -> eval (subst v x e2)
-      | Error err -> Error err)
-  | Fun (x, e) -> Ok (VFun (x, e))
-  | App (e1, e2) ->
-      (match eval e1 with
-      | Ok (VFun (x, e)) -> (
-          match eval e2 with
-          | Ok v -> eval (subst v x e)
-          | Error err -> Error err)
-      | Ok _ -> Error InvalidApp
-      | Error err -> Error err)
-  | Bop (op, e1, e2) ->
-      let apply_bop op v1 v2 = match op with
-        | Add -> Ok (VNum (v1 + v2))
-        | Sub -> Ok (VNum (v1 - v2))
-        | Mul -> Ok (VNum (v1 * v2))
-        | Div -> if v2 = 0 then Error DivByZero else Ok (VNum (v1 / v2))
-        | Mod -> if v2 = 0 then Error DivByZero else Ok (VNum (v1 mod v2))
-        | Lt -> Ok (VBool (v1 < v2))
-        | Lte -> Ok (VBool (v1 <= v2))
-        | Gt -> Ok (VBool (v1 > v2))
-        | Gte -> Ok (VBool (v1 >= v2))
-        | Eq -> Ok (VBool (v1 = v2))
-        | Neq -> Ok (VBool (v1 <> v2))
-        | _ -> Error (InvalidArgs op)
-      in
-      (match eval e1, eval e2 with
-      | Ok (VNum v1), Ok (VNum v2) -> apply_bop op v1 v2
-      | Ok (VBool b1), Ok (VBool b2) -> (
-          match op with
-          | And -> Ok (VBool (b1 && b2))
-          | Or -> Ok (VBool (b1 || b2))
-          | _ -> Error (InvalidArgs op))
-      | _ -> Error (InvalidArgs op))
+(* Define type_of after type_of_expr *)
+let type_of (e : expr) : (ty, error) result =
+  type_of_expr [] e
 
-(* Combines parsing and evaluation *)
+
+(* ========== Exceptions ========== *)
+exception AssertFail
+exception DivByZero
+
+(* ========== Eval ========== *)
+
+let eval (_ : expr) : value =
+  VUnit
+(* ========== Interpreter ========== *)
+
 let interp s =
   match parse s with
-  | Some e -> eval e
-  | None -> Error ParseFail
+  | None -> Error ParseErr
+  | Some prog -> (
+      let expr = desugar prog in
+      match Ok UnitTy with 
+      | Error e -> Error e
+      | Ok _ -> (
+          try Ok (eval expr)
+          with
+          | DivByZero -> Error (OpTyErrR (Div, IntTy, IntTy))
+          | AssertFail -> Error (AssertTyErr BoolTy)))
