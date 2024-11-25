@@ -1,140 +1,148 @@
-include Utils
-
+open Utils
 open My_parser
 
-(* Parsing function *)
-let parse s =
-  try Some (Par.prog Lex.read (Lexing.from_string s))
+(* Parse string to AST *)
+let parse (input : string) : prog option =
+  let lexbuf = Lexing.from_string input in
+  try Some (My_parser.prog Lexer.token lexbuf)
   with _ -> None
 
-(* Desugaring function *)
-let rec desugar (prog: sfexpr): expr =
-  match prog with
-  | SToplets toplets -> desugar_toplets toplets
-  | _ -> failwith "Invalid program structure"
+(* Desugar function: converts sfexpr to expr *)
+let rec desugar_sfexpr (s : sfexpr) : expr =
+  match s with
+  | SUnit -> Unit
+  | STrue -> True
+  | SFalse -> False
+  | SNum n -> Num n
+  | SVar x -> Var x
+  | SFun { arg; args; body } ->
+      let rec curry args body =
+        match args with
+        | [] -> Fun (fst arg, snd arg, desugar_sfexpr body)
+        | (x, ty)::xs -> Fun (x, ty, curry xs body)
+      in curry (arg :: args) body
+  | SApp (f, x) -> App (desugar_sfexpr f, desugar_sfexpr x)
+  | SLet { is_rec; name; args; ty; value; body } ->
+      let value_expr = desugar_sfexpr value in
+      let rec curry args value =
+        match args with
+        | [] -> value
+        | (x, ty)::xs -> Fun (x, ty, curry xs value)
+      in
+      Let { is_rec; name; ty; value = curry args value_expr; body = desugar_sfexpr body }
+  | SIf (cond, then_, else_) ->
+      If (desugar_sfexpr cond, desugar_sfexpr then_, desugar_sfexpr else_)
+  | SBop (op, lhs, rhs) -> Bop (op, desugar_sfexpr lhs, desugar_sfexpr rhs)
+  | SAssert e -> Assert (desugar_sfexpr e)
 
-and desugar_toplets (toplets: Utils.sftoplet list): expr =
-  match toplets with
-  | [] -> Unit
-  | Utils.SToplet { is_rec; name; args; ty; value } :: rest ->
-    let func_expr = List.fold_right (fun (arg, ty) acc -> Fun (arg, ty, acc)) args (desugar value) in
-    let desugared_rest = desugar_toplets rest in
-    if is_rec then
-      Let { is_rec = true; name; ty; value = func_expr; body = desugared_rest }
-    else
-      Let { is_rec = false; name; ty; value = func_expr; body = desugared_rest }
+let desugar (p : prog) : expr =
+  List.fold_right
+    (fun toplet acc ->
+      let { is_rec; name; args; ty; value } = toplet in
+      Let { is_rec; name; ty; value = desugar_sfexpr value; body = acc })
+    p Unit
 
-(* Type checking function *)
-let rec type_of ctx expr =
-  match expr with
-  | Num _ -> Ok IntTy
-  | True | False -> Ok BoolTy
+(* Type-checking function *)
+let rec type_of (ctx : (string * ty) list) (e : expr) : (ty, error) result =
+  match e with
   | Unit -> Ok UnitTy
-  | Var x -> (
-      match List.assoc_opt x ctx with
-      | Some t -> Ok t
-      | None -> Error (UnknownVar x)
-    )
-  | If (cond, e_then, e_else) -> (
-      match type_of ctx cond with
-      | Ok BoolTy -> (
-          match type_of ctx e_then, type_of ctx e_else with
-          | Ok t1, Ok t2 when t1 = t2 -> Ok t1
-          | Ok t1, Ok t2 -> Error (IfTyErr (t1, t2))
-          | _, Error e -> Error e
-        )
-      | Ok t -> Error (IfCondTyErr t)
-      | Error e -> Error e
-    )
-  | Fun (x, ty, e_body) ->
-      let extended_ctx = (x, ty) :: ctx in
-      (match type_of extended_ctx e_body with
-      | Ok t_body -> Ok (FunTy (ty, t_body))
-      | Error e -> Error e)
-  | App (e1, e2) -> (
-      match type_of ctx e1, type_of ctx e2 with
-      | Ok (FunTy (t_arg, t_ret)), Ok t when t_arg = t -> Ok t_ret
-      | Ok (FunTy (t_arg, _)), Ok t -> Error (FunArgTyErr (t_arg, t))
-      | Ok t, _ -> Error (FunAppTyErr t)
-      | Error e, _ -> Error e
-    )
+  | True | False -> Ok BoolTy
+  | Num _ -> Ok IntTy
+  | Var x ->
+      (try Ok (List.assoc x ctx)
+       with Not_found -> Error (UnknownVar x))
+  | Bop (op, lhs, rhs) -> (
+      match (op, type_of ctx lhs, type_of ctx rhs) with
+      | (Add | Sub | Mul | Div | Mod), Ok IntTy, Ok IntTy -> Ok IntTy
+      | (Lt | Lte | Gt | Gte | Eq | Neq), Ok IntTy, Ok IntTy -> Ok BoolTy
+      | (And | Or), Ok BoolTy, Ok BoolTy -> Ok BoolTy
+      | op, Ok t1, Ok t2 when t1 <> t2 -> Error (OpTyErrL (op, t1, t2))
+      | op, _, _ -> Error (OpTyErrR (op, IntTy, BoolTy)))
+  | If (cond, then_, else_) -> (
+      match (type_of ctx cond, type_of ctx then_, type_of ctx else_) with
+      | Ok BoolTy, Ok ty1, Ok ty2 when ty1 = ty2 -> Ok ty1
+      | Ok BoolTy, Ok ty1, Ok ty2 -> Error (IfTyErr (ty1, ty2))
+      | Ok ty, _, _ -> Error (IfCondTyErr ty)
+      | Error err, _, _ -> Error err)
+  | Fun (arg, ty, body) ->
+      let ctx' = (arg, ty) :: ctx in
+      (match type_of ctx' body with
+       | Ok ret_ty -> Ok (FunTy (ty, ret_ty))
+       | Error err -> Error err)
+  | App (f, arg) -> (
+      match type_of ctx f with
+      | Ok (FunTy (arg_ty, ret_ty)) ->
+          (match type_of ctx arg with
+           | Ok arg_ty' when arg_ty = arg_ty' -> Ok ret_ty
+           | Ok arg_ty' -> Error (FunArgTyErr (arg_ty, arg_ty'))
+           | Error err -> Error err)
+      | Ok ty -> Error (FunAppTyErr ty)
+      | Error err -> Error err)
   | Let { is_rec; name; ty; value; body } ->
-      let extended_ctx = if is_rec then (name, ty) :: ctx else ctx in
-      (match type_of extended_ctx value with
-      | Ok t_value when t_value = ty ->
-          type_of ((name, ty) :: ctx) body
-      | Ok t_value -> Error (LetTyErr (ty, t_value))
-      | Error e -> Error e)
+      let ctx' = (name, ty) :: ctx in
+      let value_ty = type_of (if is_rec then ctx' else ctx) value in
+      (match (value_ty, type_of ctx' body) with
+       | Ok ty1, Ok ty2 when ty1 = ty -> Ok ty2
+       | Ok ty1, Ok _ -> Error (LetTyErr (ty, ty1))
+       | Error err, _ -> Error err)
   | Assert e -> (
       match type_of ctx e with
       | Ok BoolTy -> Ok UnitTy
-      | Ok t -> Error (AssertTyErr t)
-      | Error e -> Error e
-    )
-  | Bop (op, e1, e2) ->
-      let check_bop t1 t2 expected_ty =
-        match t1, t2 with
-        | Ok t1', Ok t2' when t1' = expected_ty && t2' = expected_ty -> Ok expected_ty
-        | Ok t1', Ok t2' when t1' <> expected_ty -> Error (OpTyErrL (op, expected_ty, t1'))
-        | Ok _, Ok t2' -> Error (OpTyErrR (op, expected_ty, t2'))
-        | Error e, _ -> Error e
-        | _, Error e -> Error e
-      in
-      (match op with
-      | Add | Sub | Mul | Div | Mod -> check_bop (type_of ctx e1) (type_of ctx e2) IntTy
-      | Lt | Lte | Gt | Gte -> check_bop (type_of ctx e1) (type_of ctx e2) IntTy
-      | Eq | Neq -> check_bop (type_of ctx e1) (type_of ctx e2) IntTy
-      | And | Or -> check_bop (type_of ctx e1) (type_of ctx e2) BoolTy)
+      | Ok ty -> Error (AssertTyErr ty)
+      | Error err -> Error err)
 
 (* Evaluation function *)
-let rec eval env expr =
-  match expr with
-  | Num n -> VNum n
+let rec eval (env : (string * value) list) (e : expr) : value =
+  match e with
+  | Unit -> VUnit
   | True -> VBool true
   | False -> VBool false
-  | Unit -> VUnit
-  | Var x -> (
-      match List.assoc_opt x env with
-      | Some v -> v
-      | None -> raise (UnknownVar x)
-    )
-  | If (cond, e_then, e_else) -> (
+  | Num n -> VNum n
+  | Var x -> List.assoc x env
+  | Bop (op, lhs, rhs) -> (
+      let lv = eval env lhs and rv = eval env rhs in
+      match (op, lv, rv) with
+      | (Add, VNum l, VNum r) -> VNum (l + r)
+      | (Sub, VNum l, VNum r) -> VNum (l - r)
+      | (Mul, VNum l, VNum r) -> VNum (l * r)
+      | (Div, VNum l, VNum r) when r <> 0 -> VNum (l / r)
+      | (Mod, VNum l, VNum r) when r <> 0 -> VNum (l mod r)
+      | (Lt, VNum l, VNum r) -> VBool (l < r)
+      | (Lte, VNum l, VNum r) -> VBool (l <= r)
+      | (Gt, VNum l, VNum r) -> VBool (l > r)
+      | (Gte, VNum l, VNum r) -> VBool (l >= r)
+      | (Eq, VNum l, VNum r) -> VBool (l = r)
+      | (Neq, VNum l, VNum r) -> VBool (l <> r)
+      | (And, VBool l, VBool r) -> VBool (l && r)
+      | (Or, VBool l, VBool r) -> VBool (l || r)
+      | _ -> failwith "Runtime error in binary operation")
+  | If (cond, then_, else_) -> (
       match eval env cond with
-      | VBool true -> eval env e_then
-      | VBool false -> eval env e_else
-      | _ -> raise InvalidIfCond
-    )
-  | Fun (x, _, e_body) -> VFun (x, e_body)
-  | App (e1, e2) -> (
-      match eval env e1 with
-      | VFun (x, e_body) ->
-          let v_arg = eval env e2 in
-          eval ((x, v_arg) :: env) e_body
-      | _ -> raise InvalidApp
-    )
-  | Let { is_rec; name; value; body } ->
-      let v = eval env value in
-      eval ((name, v) :: env) body
+      | VBool true -> eval env then_
+      | VBool false -> eval env else_
+      | _ -> failwith "Condition is not a boolean")
+  | Fun (arg, _, body) -> VClos { name = None; arg; body; env }
+  | App (f, arg) -> (
+      match eval env f with
+      | VClos { name = _; arg = param; body; env = env' } ->
+          let arg_val = eval env arg in
+          eval ((param, arg_val) :: env') body
+      | _ -> failwith "Trying to apply a non-function")
+  | Let { is_rec; name; ty = _; value; body } ->
+      let value_val = if is_rec then VClos { name = Some name; arg = ""; body = value; env } else eval env value in
+      eval ((name, value_val) :: env) body
   | Assert e -> (
       match eval env e with
       | VBool true -> VUnit
-      | VBool false -> raise AssertFail
-      | _ -> raise InvalidIfCond
-    )
-  | Bop (op, e1, e2) -> eval_binary_op op (eval env e1) (eval env e2)
+      | VBool false -> failwith "Assertion failed"
+      | _ -> failwith "Assert expression not a boolean")
 
-(* Top-level interpreter *)
-let interp s =
-  match parse s with
-  | None -> Error ParseFail
-  | Some sfexpr -> (
-      try
-        let expr = desugar sfexpr in
-        match type_of [] expr with
-        | Ok _ -> Ok (eval [] expr)
-        | Error e -> Error e
-      with
-      | DivByZero -> Error DivByZero
-      | AssertFail -> Error AssertFail
-      | e -> failwith (Printexc.to_string e)
-    )
+(* High-level interpreter function *)
+let interp (input : string) : (value, error) result =
+  match parse input with
+  | None -> Error ParseErr
+  | Some prog -> (
+      let expr = desugar prog in
+      match type_of [] expr with
+      | Error err -> Error err
+      | Ok _ -> Ok (eval [] expr))
