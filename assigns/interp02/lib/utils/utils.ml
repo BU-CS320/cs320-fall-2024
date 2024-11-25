@@ -1,35 +1,3 @@
-type bop =
-  | Add | Sub | Mul | Div | Mod
-  | Lt | Lte | Gt | Gte | Eq | Neq
-  | And | Or
-
-(* Surface-level expressions (produced by the parser) *)
-type sfexpr =
-  | SNum of int
-  | SVar of string
-  | SUnit | STrue | SFalse
-  | SApp of sfexpr * sfexpr
-  | SBop of bop * sfexpr * sfexpr
-  | SIf of sfexpr * sfexpr * sfexpr
-  | SLet of { is_rec: bool; name: string; ty: ty; value: sfexpr; body: sfexpr }
-  | SFun of string * ty * sfexpr
-  | SAssert of sfexpr
-  | SToplets of sftoplet list
-
-type sftoplet =
-  | SToplet of { is_rec: bool; name: string; args: (string * ty) list; ty: ty; value: sfexpr }
-
-(* Core language expressions (used after desugaring) *)
-type expr =
-  | Num of int
-  | Var of string
-  | Unit | True | False
-  | App of expr * expr
-  | Bop of bop * expr * expr
-  | If of expr * expr * expr
-  | Let of { is_rec: bool; name: string; ty: ty; value: expr; body: expr }
-  | Fun of string * ty * expr
-  | Assert of expr
 
 type ty =
   | IntTy
@@ -37,46 +5,158 @@ type ty =
   | UnitTy
   | FunTy of ty * ty
 
-type value =
-  | VNum of int
-  | VBool of bool
-  | VUnit
-  | VFun of string * expr
+let string_of_ty =
+  let rec go = function
+    | IntTy -> "int"
+    | BoolTy -> "bool"
+    | UnitTy -> "unit"
+    | FunTy (t1, t2) ->
+      go' t1 ^ " -> " ^ go t2
+  and go' = function
+    | IntTy -> "int"
+    | BoolTy -> "bool"
+    | UnitTy -> "unit"
+    | FunTy (t1, t2)-> "(" ^ go (FunTy (t1, t2)) ^ ")"
+  in go
 
-type error =
-  | DivByZero
-  | InvalidIfCond
-  | InvalidArgs of bop
-  | InvalidApp
-  | UnknownVar of string
-  | ParseFail
-
-let string_of_value = function
-  | VNum n -> string_of_int n
-  | VBool true -> "true"
-  | VBool false -> "false"
-  | VUnit -> "()"
-  | VFun (_, _) -> "<fun>"
+type bop =
+  | Add | Sub | Mul | Div | Mod
+  | Lt | Lte | Gt | Gte | Eq | Neq
+  | And | Or
 
 let string_of_bop = function
-  | Add -> "(+)"
-  | Sub -> "(-)"
-  | Mul -> "(*)"
-  | Div -> "(/)"
-  | Mod -> "(mod)"
-  | Lt -> "(<)"
-  | Lte -> "(<=)"
-  | Gt -> "(>)"
-  | Gte -> "(>=)"
-  | Eq -> "(=)"
-  | Neq -> "(<>)"
-  | And -> "(&&)"
-  | Or -> "(||)"
+  | Add -> "+"
+  | Sub -> "-"
+  | Mul -> "*"
+  | Div -> "/"
+  | Mod -> "mod"
+  | Lt -> "<"
+  | Lte -> "<="
+  | Gt -> ">"
+  | Gte -> ">="
+  | Eq -> "="
+  | Neq -> "<>"
+  | And -> "&&"
+  | Or -> "||"
+
+type sfexpr =
+  | SUnit
+  | STrue
+  | SFalse
+  | SNum of int
+  | SVar of string
+  | SFun of
+    { arg : string * ty
+    ; args : (string * ty) list
+    ; body : sfexpr
+    }
+  | SApp of sfexpr * sfexpr
+  | SLet of
+    { is_rec : bool
+    ; name : string
+    ; args : (string * ty) list
+    ; ty : ty
+    ; value : sfexpr
+    ; body : sfexpr
+    }
+  | SIf of sfexpr * sfexpr * sfexpr
+  | SBop of bop * sfexpr * sfexpr
+  | SAssert of sfexpr
+
+type toplet =
+  { is_rec : bool
+  ; name : string
+  ; args : (string * ty) list
+  ; ty : ty
+  ; value : sfexpr
+  }
+
+type prog = toplet list
+
+type expr =
+  | Unit
+  | True
+  | False
+  | Num of int
+  | Var of string
+  | If of expr * expr * expr
+  | Bop of bop * expr * expr
+  | Fun of string * ty * expr
+  | App of expr * expr
+  | Let of
+    { is_rec: bool
+    ; name: string
+    ; ty : ty
+    ; value : expr
+    ; body : expr
+    }
+  | Assert of expr
+
+type value =
+  | VUnit
+  | VBool of bool
+  | VNum of int
+  | VClos of
+    { name : string option
+    ; arg : string
+    ; body : expr
+    ; env : value env
+    }
+
+type error =
+  | ParseErr
+  | UnknownVar of string
+  | IfTyErr of ty * ty
+  | IfCondTyErr of ty
+  | OpTyErrL of bop * ty * ty
+  | OpTyErrR of bop * ty * ty
+  | FunArgTyErr of ty * ty
+  | FunAppTyErr of ty
+  | LetTyErr of ty * ty
+  | AssertTyErr of ty
 
 let err_msg = function
-  | DivByZero -> "division by zero"
-  | InvalidIfCond -> "non-Boolean value given as condition"
-  | InvalidArgs op -> "invalid arguments given to " ^ string_of_bop op
-  | InvalidApp -> "non-function value used in function application"
-  | UnknownVar x -> "unknown variable '" ^ x ^ "'"
-  | ParseFail -> "syntax error"
+  | ParseErr -> "parse error"
+  | UnknownVar x -> "Unbound value " ^ x
+  | IfTyErr (then_ty, else_ty) ->
+    "else-case of if-expression has type "
+    ^ string_of_ty else_ty
+    ^ " but an expression was expected of type "
+    ^ string_of_ty then_ty
+  | IfCondTyErr ty ->
+    "condition of if-expression has type "
+    ^ string_of_ty ty
+    ^ " but an expression was expected of type bool"
+  | OpTyErrL (op, t1, t2) ->
+    "left argument of operator ("
+    ^ string_of_bop op
+    ^ ") has type "
+    ^ string_of_ty t2
+    ^ " but an expression was expected of type "
+    ^ string_of_ty t1
+  | OpTyErrR (op, t1, t2) ->
+    "right argument of operator ("
+    ^ string_of_bop op
+    ^ ") has type "
+    ^ string_of_ty t2
+    ^ " but an expression was expected of type "
+    ^ string_of_ty t1
+  | FunArgTyErr (t1, t2) ->
+    "argument of function has type "
+    ^ string_of_ty t2
+    ^ " but an expression was expected of type "
+    ^ string_of_ty t1
+  | FunAppTyErr ty ->
+    "an expression of type "
+    ^ string_of_ty ty
+    ^ " is not a function; it cannot be applied"
+  | LetTyErr (expected, actual) ->
+    "let-defined value has type "
+    ^ string_of_ty actual
+    ^ " but an expression was expected of type "
+    ^ string_of_ty expected
+  | AssertTyErr ty ->
+    "argument of assert has type "
+    ^ string_of_ty ty
+    ^ " but an expression was expected of type bool"
+
