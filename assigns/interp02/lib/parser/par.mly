@@ -55,6 +55,15 @@ ty:
   | t1 = ty ARROW t2 = ty { FunTy(t1, t2) }
   | LPAREN t = ty RPAREN { t }
 
+expr1:
+  | e1 = expr1 op = binop e2 = expr2 { SBop(op, e1, e2) }
+  | e = expr2 { e }
+
+expr2:
+  | ASSERT LPAREN e = expr RPAREN { SAssert(e) }
+  | e1 = expr2 e2 = expr3 { SApp(e1, e2) }
+  | e = expr3 { e }
+  
 expr3:
   | UNIT_VAL { SUnit }
   | TRUE { STrue }
@@ -62,16 +71,7 @@ expr3:
   | n = NUM { SNum n }
   | x = VAR { SVar x }
   | LPAREN e = expr RPAREN { e }
-
-expr2:
-  | ASSERT LPAREN e = expr RPAREN { SAssert(e) }
-  | e1 = expr2 e2 = expr3 { SApp(e1, e2) }
-  | e = expr3 { e }
-
-expr1:
-  | e1 = expr1 op = binop e2 = expr2 { SBop(op, e1, e2) }
-  | e = expr2 { e }
-
+  
 expr:
   | FUN args = nonempty_list(arg) ARROW body = expr
     { List.fold_right (fun (x,t) acc -> SFun{arg=(x,t); args=[]; body=acc}) args body }
