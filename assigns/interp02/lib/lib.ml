@@ -3,17 +3,13 @@ open Utils
 
 let parse = parse
 
-(* ========== 辅助函数 ========== *)
-
 let list_tl = function
- | [] -> failwith "空列表"
+ | [] -> failwith "列表为空"
  | _ :: t -> t
 
 let list_hd = function
- | [] -> failwith "空列表"
+ | [] -> failwith "列表为空"
  | h :: _ -> h
-
-(* ========== 去糖化 ========== *)
 
 let rec desugar_expr (e : sfexpr) : expr =
  match e with
@@ -71,14 +67,11 @@ let desugar (prog : prog) : expr =
  in
  nest_lets prog
 
-(* ========== 类型检查 ========== *)
-
 type context = (string * ty) list
 
 let lookup ctx x =
  try Ok (List.assoc x ctx) with Not_found -> Error (UnknownVar x)
 
-(* 定义 type_of_expr 函数 *)
 let rec type_of_expr (ctx : context) (e : expr) : (ty, error) result =
   match e with
   | Unit -> Ok UnitTy
@@ -149,19 +142,12 @@ let rec type_of_expr (ctx : context) (e : expr) : (ty, error) result =
       | Ok t -> Error (AssertTyErr t)
       | Error e -> Error e)
 
-(* 定义 type_of 函数 *)
 let type_of (e : expr) : (ty, error) result =
   type_of_expr [] e
 
-
-(* ========== 异常 ========== *)
 exception AssertFail
 exception DivByZero
 
-
-(* ========== 计算 ========== *)
-(*let eval (_ : expr) : value =
-  VUnit*)
 let eval expr =
   let rec eval env expr =
     match expr with
@@ -239,8 +225,6 @@ let eval expr =
 
   in eval Env.empty expr
 
-(* ========== 解释器 ========== *)
-
 let interp s =
   match parse s with
   | None -> Error ParseErr
@@ -253,4 +237,3 @@ let interp s =
           with
           | DivByZero -> Error (OpTyErrR (Div, IntTy, IntTy))
           | AssertFail -> Error (AssertTyErr BoolTy)
-
