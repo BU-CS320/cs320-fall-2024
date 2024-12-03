@@ -1,0 +1,5 @@
+(library
+ (name demo)
+ (libraries stdlib320))
+(menhir (modules par))
+(ocamllex lex)
