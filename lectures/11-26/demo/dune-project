@@ -1,0 +1,14 @@
+(lang dune 3.16)
+
+(name demo)
+
+(generate_opam_files true)
+
+(package
+ (name demo)
+ (synopsis "A short synopsis")
+ (description "A longer description")
+ (depends ocaml dune stdlib320))
+
+(using menhir 2.1)
+
