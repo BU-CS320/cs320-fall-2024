@@ -37,7 +37,85 @@ let unify =
     | _ -> None
   in go
 
-let type_of _ = assert false
+let rec type_of' (ctxt : (string list * ty) env) (e : expr) : ty * (ty * ty) list =
+  let rec go e =
+    match e with
+    | Num _ -> TInt, []
+    | Add (e1, e2) ->
+      let t1, c1 = go e1 in
+      let t2, c2 = go e2 in
+      ( TInt
+      , (t1, TInt) :: (t2, TInt) :: c1 @ c2
+      )
+    | Eq (e1, e2) ->
+      let t1, c1 = go e1 in
+      let t2, c2 = go e2 in
+      ( TBool
+      , (t1, TInt) :: (t2, TInt) :: c1 @ c2
+      )
+    | If (e1, e2, e3) ->
+      let t1, c1 = go e1 in
+      let t2, c2 = go e2 in
+      let t3, c3 = go e3 in
+      ( t3
+      , [(t1, TBool); (t2, t3)] @ c1 @ c2 @ c3
+      )
+    | Fun (x, e) ->
+      let a = TVar (gensym ()) in
+      let t, c =
+        let ctxt = Env.add x ([], a) ctxt in
+        type_of' ctxt e
+      in
+      (TFun (a, t), c)
+    | App (e1, e2) ->
+      let t1, c1 = go e1 in
+      let t2, c2 = go e2 in
+      let a = TVar (gensym ()) in
+      ( a
+      , (t1, TFun (t2, a)) :: c1 @ c2
+      )
+    | Let (x, e1, e2) ->
+      let t1, c1 = go e1 in
+      let t2, c2 =
+        let ctxt = Env.add x ([], t1) ctxt in
+        type_of' ctxt e2
+      in
+      (t2, c1 @ c2)
+    | LetRec (f, x, e1, e2) ->
+      let a = TVar (gensym ()) in
+      let b = TVar (gensym ()) in
+      let t1, c1 =
+        let ctxt = Env.add f ([], TFun (a, b)) ctxt in
+        let ctxt = Env.add x ([], a) ctxt in
+        type_of' ctxt e1
+      in
+      let t2, c2 =
+        let ctxt = Env.add f ([], TFun (a, b)) ctxt in
+        type_of' ctxt e2
+      in
+      ( t2
+      , (b, t1) :: c1 @ c2
+      )
+    | Var x ->
+      let bnd_vars, t = Env.find x ctxt in
+      let rec instantiate bnd_vars t =
+        match bnd_vars with
+        | [] -> t
+        | x :: bnd_vars ->
+          let b = TVar (gensym ()) in
+          instantiate bnd_vars (ty_subst b x t)
+      in
+      ( instantiate bnd_vars t
+      , []
+      )
+  in go e
+
+let type_of e =
+  let t, c = type_of' Env.empty e in (* constraint-based inference *)
+  let t' = unify (c @ [TVar "$_out", t]) in (* unification *)
+  match t' with
+  | None -> None
+  | Some t' -> Some (VarSet.to_list (fvs t'), t') (* generalization *)
 
 let eval =
   let rec eval env =

@@ -168,7 +168,7 @@ let string_of_ty_scheme (fvs, t) =
   in
   let rec go = function
     | TInt -> "int"
-    | TBool -> "Bool"
+    | TBool -> "bool"
     | TVar x -> x
     | TFun (TFun (t1, t2), t) -> "(" ^ go (TFun (t1, t2)) ^ ") -> " ^ go t
     | TFun (t1, t2) -> go t1 ^ " -> " ^ go t2

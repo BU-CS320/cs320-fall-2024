@@ -11,7 +11,7 @@ type expr =
   | Num of int
   | Var of string
 
-type ty =
+type ty = (* monotype *)
   | TInt
   | TBool
   | TVar of string
