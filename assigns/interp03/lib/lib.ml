@@ -85,6 +85,25 @@ let rec type_of env expr =
       (match type_of env e1, type_of env e2, type_of env e3 with
       | Some (Forall (_, TBool)), Some t2, Some t3 when t2 = t3 -> Some t2
       | _ -> None)
+  | Match (matched, patterns) ->
+      let rec infer_patterns matched_ty patterns =
+        match patterns with
+        | [] -> None
+        | (pat, expr) :: rest ->
+            let pat_ty, new_env = infer_pattern pat in
+            if pat_ty = matched_ty then
+              match type_of (Env.union (fun _ _ v -> Some v) env new_env) expr with
+              | Some ty -> Some ty
+              | None -> infer_patterns matched_ty rest
+            else infer_patterns matched_ty rest
+      in
+      (match type_of env matched with
+      | Some (Forall (_, matched_ty)) -> infer_patterns matched_ty patterns
+      | _ -> None)
+  | App (e1, e2) ->
+      (match type_of env e1, type_of env e2 with
+      | Some (Forall (_, TFun (arg_ty, ret_ty))), Some (Forall (_, arg_ty')) when arg_ty = arg_ty' -> Some (Forall ([], ret_ty))
+      | _ -> None)
   | _ -> None
 
 (* Binary Operator Evaluation Function *)
@@ -147,6 +166,19 @@ let rec eval_expr env expr =
       let value_val = eval_expr rec_env value in
       let final_env = Env.add name value_val env in
       eval_expr final_env body
+    )
+  | Match (matched, patterns) -> (
+      let matched_val = eval_expr env matched in
+      let rec eval_patterns patterns =
+        match patterns with
+        | [] -> failwith "No matching pattern"
+        | (pat, expr) :: rest -> (
+            match eval_pattern pat matched_val with
+            | Some new_env -> eval_expr (Env.union (fun _ _ v -> Some v) env new_env) expr
+            | None -> eval_patterns rest
+          )
+      in
+      eval_patterns patterns
     )
   | _ -> failwith "Unimplemented expression"
 
