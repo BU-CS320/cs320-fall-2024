@@ -77,4 +77,5 @@ and read_comment depth =
       else read_comment (depth - 1) lexbuf
     }
   | [^ '(' '*']+ { read_comment depth lexbuf }
+  | [ '(' '*' ] { read_comment depth lexbuf }
   | _ { failwith "Comment not closed" }
