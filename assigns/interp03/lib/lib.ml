@@ -1,12 +1,13 @@
 open Utils
 include My_parser
 
-(* 异常声明 *)
+(* Exception Declarations *)
 exception AssertFail
 exception DivByZero
 exception RecWithoutArg
 exception CompareFunVals
 
+(* Helper to Get Free Variables *)
 let rec free_vars ty =
   match ty with
   | TVar x -> [x]
@@ -14,7 +15,7 @@ let rec free_vars ty =
   | TList t | TOption t -> free_vars t
   | _ -> []
 
-  
+(* Substitute a Variable with Another Type in a Type Expression *)
 let rec substitute var subst ty =
   match ty with
   | TVar x -> if x = var then subst else ty
@@ -24,8 +25,7 @@ let rec substitute var subst ty =
   | TOption t -> TOption (substitute var subst t)
   | _ -> ty
 
-
-(* 类型统一函数 *)
+(* Type Unification Function *)
 let unify (ty : Utils.ty) (constraints : Utils.constr list) : Utils.ty_scheme option =
   let rec unify_one (t1, t2) subs =
     match t1, t2 with
@@ -54,8 +54,7 @@ let unify (ty : Utils.ty) (constraints : Utils.constr list) : Utils.ty_scheme op
     Some (Forall (free_vars ty_subst, ty_subst))
   with _ -> None
 
-
-(* 类型推导函数 *)
+(* Type Inference Function *)
 let rec type_of env expr =
   match expr with
   | Unit -> Some (Forall ([], TUnit))
@@ -88,7 +87,7 @@ let rec type_of env expr =
       | _ -> None)
   | _ -> None
 
-(* 二元操作符求值函数 *)
+(* Binary Operator Evaluation Function *)
 let eval_bop op v1 v2 =
   match op, v1, v2 with
   | Add, VInt x, VInt y -> VInt (x + y)
@@ -115,7 +114,7 @@ let eval_bop op v1 v2 =
   | Concat, VList l1, VList l2 -> VList (l1 @ l2)
   | _, _, _ -> failwith "Invalid binary operation or operand types"
 
-(* 表达式求值函数 *)
+(* Expression Evaluation Function *)
 let rec eval_expr env expr =
   match expr with
   | Unit -> VUnit
@@ -151,7 +150,7 @@ let rec eval_expr env expr =
     )
   | _ -> failwith "Unimplemented expression"
 
-(* 类型检查函数 *)
+(* Type Check Function *)
 let type_check =
   let rec go ctxt = function
   | [] -> Some (Forall ([], TUnit))
@@ -164,7 +163,7 @@ let type_check =
     )
   in go Env.empty
 
-(* 程序求值函数 *)
+(* Program Evaluation Function *)
 let eval p =
   let rec nest = function
     | [] -> Unit
@@ -172,7 +171,7 @@ let eval p =
     | {is_rec; name; value} :: ls -> Let {is_rec; name; value; body = nest ls}
   in eval_expr Env.empty (nest p)
 
-(* 解释器入口 *)
+(* Interpreter Entry Point *)
 let interp input =
   match parse input with
   | Some prog -> (
