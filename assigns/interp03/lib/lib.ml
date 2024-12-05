@@ -32,7 +32,7 @@ let unify (ty : Utils.ty) (constraints : Utils.constr list) : Utils.ty_scheme op
     | TInt, TInt | TBool, TBool | TUnit, TUnit -> subs
     | TVar x, t | t, TVar x ->
         if t = TVar x then subs
-        else if occurs_check x t then failwith "Unification error: occurs check failed"
+        else if List.mem x (free_vars t) then failwith "Occurs check failed"
         else (x, t) :: subs
     | TFun (t1a, t1b), TFun (t2a, t2b) ->
         unify_one (t1a, t2a) subs |> unify_one (t1b, t2b)
@@ -40,13 +40,7 @@ let unify (ty : Utils.ty) (constraints : Utils.constr list) : Utils.ty_scheme op
         unify_one (t1a, t2a) subs |> unify_one (t1b, t2b)
     | TList t1, TList t2 | TOption t1, TOption t2 ->
         unify_one (t1, t2) subs
-    | _ -> failwith "Unification error: incompatible types"
-  and occurs_check var ty =
-    match ty with
-    | TVar x -> x = var
-    | TFun (t1, t2) | TPair (t1, t2) -> occurs_check var t1 || occurs_check var t2
-    | TList t | TOption t -> occurs_check var t
-    | _ -> false
+    | _ -> failwith "Unification failed: incompatible types"
   in
   try
     let subs = List.fold_left (fun subs constr -> unify_one constr subs) [] constraints in
@@ -93,10 +87,8 @@ let eval_bop op v1 v2 =
   | Add, VInt x, VInt y -> VInt (x + y)
   | Sub, VInt x, VInt y -> VInt (x - y)
   | Mul, VInt x, VInt y -> VInt (x * y)
-  | Div, VInt x, VInt y ->
-      if y = 0 then raise DivByZero else VInt (x / y)
-  | Mod, VInt x, VInt y ->
-      if y = 0 then raise DivByZero else VInt (x mod y)
+  | Div, VInt x, VInt y -> if y = 0 then raise DivByZero else VInt (x / y)
+  | Mod, VInt x, VInt y -> if y = 0 then raise DivByZero else VInt (x mod y)
   | AddF, VFloat x, VFloat y -> VFloat (x +. y)
   | SubF, VFloat x, VFloat y -> VFloat (x -. y)
   | MulF, VFloat x, VFloat y -> VFloat (x *. y)
@@ -122,54 +114,48 @@ let rec eval_expr env expr =
   | False -> VBool false
   | Int n -> VInt n
   | Float f -> VFloat f
-  | Var x -> (
-      match Env.find_opt x env with
-      | Some v -> v
-      | None -> failwith ("Unbound variable: " ^ x)
-    )
-  | If (e1, e2, e3) -> (
-      match eval_expr env e1 with
+  | Var x -> (match Env.find_opt x env with Some v -> v | None -> failwith ("Unbound variable: " ^ x))
+  | If (e1, e2, e3) ->
+      (match eval_expr env e1 with
       | VBool true -> eval_expr env e2
       | VBool false -> eval_expr env e3
-      | _ -> failwith "Condition of if must be a boolean"
-    )
+      | _ -> failwith "Condition of if must be a boolean")
   | Bop (op, e1, e2) -> eval_bop op (eval_expr env e1) (eval_expr env e2)
   | Fun (arg, _, body) -> VClos { name = None; arg; body; env }
-  | App (e1, e2) -> (
-      match eval_expr env e1 with
+  | App (e1, e2) ->
+      (match eval_expr env e1 with
       | VClos { name = _; arg; body; env = clos_env } ->
           let arg_val = eval_expr env e2 in
           eval_expr (Env.add arg arg_val clos_env) body
-      | _ -> failwith "Attempt to apply a non-function"
-    )
-  | Let { is_rec; name; value; body } -> (
+      | _ -> failwith "Attempt to apply a non-function")
+  | Let { is_rec; name; value; body } ->
       let rec_env = if is_rec then Env.add name VNone env else env in
       let value_val = eval_expr rec_env value in
       let final_env = Env.add name value_val env in
       eval_expr final_env body
-    )
   | _ -> failwith "Unimplemented expression"
 
 (* Type Check Function *)
 let type_check =
   let rec go ctxt = function
-  | [] -> Some (Forall ([], TUnit))
-  | {is_rec; name; value} :: ls -> (
-      match type_of ctxt (Let {is_rec; name; value; body = Var name}) with
-      | Some ty ->
-          let ctxt = Env.add name ty ctxt in
-          go ctxt ls
-      | None -> None
-    )
-  in go Env.empty
+    | [] -> Some (Forall ([], TUnit))
+    | { is_rec; name; value } :: ls -> (
+        match type_of ctxt (Let { is_rec; name; value; body = Var name }) with
+        | Some ty ->
+            let ctxt = Env.add name ty ctxt in
+            go ctxt ls
+        | None -> None)
+  in
+  go Env.empty
 
 (* Program Evaluation Function *)
 let eval p =
   let rec nest = function
     | [] -> Unit
-    | [{is_rec; name; value}] -> Let {is_rec; name; value; body = Var name}
-    | {is_rec; name; value} :: ls -> Let {is_rec; name; value; body = nest ls}
-  in eval_expr Env.empty (nest p)
+    | [{ is_rec; name; value }] -> Let { is_rec; name; value; body = Var name }
+    | { is_rec; name; value } :: ls -> Let { is_rec; name; value; body = nest ls }
+  in
+  eval_expr Env.empty (nest p)
 
 (* Interpreter Entry Point *)
 let interp input =
@@ -177,7 +163,7 @@ let interp input =
   | Some prog -> (
       match type_check prog with
       | Some ty -> Ok (eval prog, ty)
-      | None -> Error TypeError
-    )
+      | None -> Error TypeError)
   | None -> Error ParseError
+
 
