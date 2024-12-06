@@ -57,8 +57,8 @@ let rec free_vars_of_ty = function
   | TFun (t1, t2) | TPair (t1, t2) -> free_vars_of_ty t1 @ free_vars_of_ty t2
   | TList t | TOption t -> free_vars_of_ty t
 
-(* Unify constraints *)
-let unify ty constraints =
+(* unify_type函数用于对约束进行求解并返回统一后的类型(不进行泛化) *)
+let unify_type ty constraints =
   let rec unify_constraints subst = function
     | [] -> Some subst
     | (t1, t2) :: cs ->
@@ -86,6 +86,30 @@ let unify ty constraints =
   match unify_constraints [] constraints with
   | Some subst ->
     let unified_ty = apply_subst subst ty in
+    Some unified_ty
+  | None -> None
+
+(* generalize函数在得到最终统一后的类型后进行泛化 *)
+let generalize ctxt ty =
+  let ty_fv = free_vars_of_ty ty in
+  let env_list = Env.to_list ctxt in
+  let env_fv =
+    List.fold_left (fun acc (_, Forall (vars, t)) ->
+      let vars_in_t = free_vars_of_ty t in
+      let all_fv = vars_in_t @ vars in
+      List.fold_left (fun s x -> VarSet.union s (VarSet.of_list [x])) acc all_fv
+    ) VarSet.empty env_list
+  in
+  let truly_free =
+    List.filter (fun x -> not (VarSet.mem x env_fv)) ty_fv
+    |> sort_uniq str_cmp
+  in
+  Forall (truly_free, ty)
+
+(* 实现 unify 函数匹配 lib.mli 的要求 *)
+let unify ty constraints =
+  match unify_type ty constraints with
+  | Some unified_ty ->
     let fv = sort_uniq str_cmp (free_vars_of_ty unified_ty) in
     Some (Forall (fv, unified_ty))
   | None -> None
@@ -120,6 +144,10 @@ let rec infer ctxt expr : infer_result =
   | Nil ->
     let a = fresh_ty () in
     (TList a, [])
+  | Assert False ->
+    (* assert false : α with no constraints *)
+    let a = fresh_ty () in
+    (a, [])
   | Assert e ->
     let (te, ce) = infer ctxt e in
     (TUnit, (te, TBool)::ce)
@@ -143,13 +171,11 @@ let rec infer ctxt expr : infer_result =
           let a = fresh_ty () in
           (TList a, (t1, TList a)::(t2, TList a)::c1@c2)
     end
-
   | If (e1, e2, e3) ->
     let (t1, c1) = infer ctxt e1 in
     let (t2, c2) = infer ctxt e2 in
     let (t3, c3) = infer ctxt e3 in
     (t3, (t1, TBool)::(t2, t3)::c1@c2@c3)
-
   | Fun (arg, annot_ty, body) ->
     let a = match annot_ty with
       | Some ty -> ty
@@ -158,29 +184,35 @@ let rec infer ctxt expr : infer_result =
     let ctxt' = Env.add arg (Forall([], a)) ctxt in
     let (tb, cb) = infer ctxt' body in
     (TFun (a, tb), cb)
-
   | App (e1, e2) ->
     let (t1, c1) = infer ctxt e1 in
     let (t2, c2) = infer ctxt e2 in
     let a = fresh_ty () in
     (a, (t1, TFun(t2,a))::c1@c2)
-
   | Let {is_rec; name; value; body} ->
     if is_rec then
+      (* let rec f = e1 in e2:
+         Introduce α, β
+         Γ,f:α->β ⊢ e1:τ1 ⊣ C1
+         τ1 = α->β
+         Γ,f:τ1 ⊢ e2:τ2 ⊣ C2
+       *)
       let alpha = fresh_ty () in
-      let ctxt' = Env.add name (Forall([], alpha)) ctxt in
+      let beta = fresh_ty () in
+      let ctxt' = Env.add name (Forall([], TFun(alpha,beta))) ctxt in
       let (tv, cv) = infer ctxt' value in
-      let scheme = generalize ctxt (apply_subst [] tv) in
-      let ctxt'' = Env.add name scheme ctxt in
+      let ctxt'' = Env.add name (Forall([], tv)) ctxt in
       let (tb, cb) = infer ctxt'' body in
-      (tb, (tv, alpha)::cv@cb)
+      (tb, (tv, TFun(alpha,beta))::cv@cb)
     else
+      (* let x = e1 in e2
+         Γ ⊢ e1 : τ1 ⊣ C1
+         Γ,x:τ1 ⊢ e2 : τ2 ⊣ C2
+       *)
       let (tv, cv) = infer ctxt value in
-      let scheme = generalize ctxt tv in
-      let ctxt' = Env.add name scheme ctxt in
+      let ctxt' = Env.add name (Forall([], tv)) ctxt in
       let (tb, cb) = infer ctxt' body in
       (tb, cv@cb)
-
   | ListMatch {matched; hd_name; tl_name; cons_case; nil_case} ->
     let (tm, cm) = infer ctxt matched in
     let a = fresh_ty () in
@@ -189,7 +221,6 @@ let rec infer ctxt expr : infer_result =
     let (tc, cc) = infer ctxt' cons_case in
     let (tn, cn) = infer ctxt nil_case in
     (tn, (tm, TList a)::(tc, tn)::cm@cc@cn)
-
   | OptMatch {matched; some_name; some_case; none_case} ->
     let (tm, cm) = infer ctxt matched in
     let a = fresh_ty () in
@@ -197,7 +228,6 @@ let rec infer ctxt expr : infer_result =
     let (ts, cs) = infer ctxt' some_case in
     let (tn, cn) = infer ctxt none_case in
     (tn, (tm, TOption a)::(ts, tn)::cm@cs@cn)
-
   | PairMatch {matched; fst_name; snd_name; case} ->
     let (tm, cm) = infer ctxt matched in
     let a = fresh_ty () in
@@ -207,25 +237,12 @@ let rec infer ctxt expr : infer_result =
     let (tc, cc) = infer ctxt' case in
     (tc, (tm, TPair(a,b))::cm@cc)
 
-and generalize ctxt ty =
-  let ty_fv = free_vars_of_ty ty in
-  let env_list = Env.to_list ctxt in
-  let env_fv =
-    List.fold_left (fun acc (_, Forall (vars, t)) ->
-      let vars_in_t = free_vars_of_ty t in
-      let all_fv = vars_in_t @ vars in
-      List.fold_left (fun s x -> VarSet.union s (VarSet.of_list [x])) acc all_fv
-    ) VarSet.empty env_list
-  in
-  let truly_free =
-    List.filter (fun x -> not (VarSet.mem x env_fv)) ty_fv
-    |> sort_uniq str_cmp
-  in
-  Forall (truly_free, ty)
-
 let type_of ctxt expr =
   let (t, c) = infer ctxt expr in
-  unify t c
+  match unify_type t c with
+  | Some unified_ty ->
+    Some (generalize ctxt unified_ty)
+  | None -> None
 
 (* eq_val作为独立递归函数 *)
 let rec eq_val v1 v2 =
@@ -413,4 +430,3 @@ let interp input =
     | None -> Error TypeError
   )
   | None -> Error ParseError
-
