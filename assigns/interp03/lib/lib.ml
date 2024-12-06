@@ -57,7 +57,6 @@ let rec free_vars_of_ty = function
   | TFun (t1, t2) | TPair (t1, t2) -> free_vars_of_ty t1 @ free_vars_of_ty t2
   | TList t | TOption t -> free_vars_of_ty t
 
-(* unify_type函数用于对约束进行求解并返回统一后的类型(不进行泛化) *)
 let unify_type ty constraints =
   let rec unify_constraints subst = function
     | [] -> Some subst
@@ -89,7 +88,6 @@ let unify_type ty constraints =
     Some unified_ty
   | None -> None
 
-(* generalize函数在得到最终统一后的类型后进行泛化 *)
 let generalize ctxt ty =
   let ty_fv = free_vars_of_ty ty in
   let env_list = Env.to_list ctxt in
@@ -117,7 +115,6 @@ let unify ty constraints =
 type infer_result = ty * constr list
 let fresh_ty () = TVar (gensym ())
 
-(* Infer types and constraints *)
 let rec infer ctxt expr : infer_result =
   match expr with
   | Unit -> (TUnit, [])
@@ -144,12 +141,14 @@ let rec infer ctxt expr : infer_result =
   | Nil ->
     let a = fresh_ty () in
     (TList a, [])
+  (* 专门区分 assert false *)
   | Assert False ->
-    (* assert false : α with no constraints *)
+    (* assert false : α ⊣ ∅ *)
     let a = fresh_ty () in
     (a, [])
   | Assert e ->
     let (te, ce) = infer ctxt e in
+    (* assert e : unit, 且 e : bool *)
     (TUnit, (te, TBool)::ce)
   | Bop (op, e1, e2) ->
     let (t1, c1) = infer ctxt e1 in
@@ -191,12 +190,6 @@ let rec infer ctxt expr : infer_result =
     (a, (t1, TFun(t2,a))::c1@c2)
   | Let {is_rec; name; value; body} ->
     if is_rec then
-      (* let rec f = e1 in e2:
-         Introduce α, β
-         Γ,f:α->β ⊢ e1:τ1 ⊣ C1
-         τ1 = α->β
-         Γ,f:τ1 ⊢ e2:τ2 ⊣ C2
-       *)
       let alpha = fresh_ty () in
       let beta = fresh_ty () in
       let ctxt' = Env.add name (Forall([], TFun(alpha,beta))) ctxt in
@@ -205,10 +198,6 @@ let rec infer ctxt expr : infer_result =
       let (tb, cb) = infer ctxt'' body in
       (tb, (tv, TFun(alpha,beta))::cv@cb)
     else
-      (* let x = e1 in e2
-         Γ ⊢ e1 : τ1 ⊣ C1
-         Γ,x:τ1 ⊢ e2 : τ2 ⊣ C2
-       *)
       let (tv, cv) = infer ctxt value in
       let ctxt' = Env.add name (Forall([], tv)) ctxt in
       let (tb, cb) = infer ctxt' body in
@@ -430,3 +419,4 @@ let interp input =
     | None -> Error TypeError
   )
   | None -> Error ParseError
+
