@@ -1,0 +1,5 @@
+(library
+ (name my_parser)
+ (libraries utils))
+(menhir (modules par))
+(ocamllex lex)
