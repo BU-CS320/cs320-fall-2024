@@ -1,0 +1,40 @@
+======================
+Problem 1: Derivations
+======================
+
+<expr>
+match <expr> with <matches>
+match <var> with <matches>
+match x with <matches>
+match x with <match> <matches>
+match x with | <pat> -> <expr> <matches>
+match x with | <num> -> <expr> <matches>
+match x with | 0 -> <expr> <matches>
+match x with | 0 -> <var> <matches>
+match x with | 0 -> x <matches>
+match x with | 0 -> x <match>
+match x with | 0 -> x | <pat> -> <expr>
+match x with | 0 -> x | <var> -> <expr>
+match x with | 0 -> x | x -> <expr>
+match x with | 0 -> x | x -> <num>
+match x with | 0 -> x | x -> 0
+
+====================
+Problem 2: Ambiguity
+====================
+
+match x with
+| x -> match x with
+       | x -> x
+       | x -> x
+
+The above sentence is ambiguous. We could either parenthesize it as
+
+match x with | x -> (match x with | x -> x) | x -> x
+
+or as
+
+match x with | x -> (match x with | x -> x | x -> x)
+
+In other words, the grammar cannot determine if the last match
+corresponds to the inner match statement or the outer match statement.
